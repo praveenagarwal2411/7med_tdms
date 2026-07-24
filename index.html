@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>7MED TDMS · Treatment Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   7MED TDMS — instrument-panel palette
+   Colours follow dialysis line convention:
+   arterial = coral/red, venous = blue, dialysate = teal,
+   amber = caution, violet = HDF
+   ============================================================ */
+:root{
+  --ground:#e9eff1;
+  --panel:#ffffff;
+  --panel-2:#f4f8f9;
+  --ink:#0f272f;
+  --ink-2:#54707b;
+  --ink-3:#8ba3ac;
+  --rule:#cfdde2;
+  --rule-2:#e3ecef;
+  --dialysate:#0d8878;
+  --dialysate-soft:#d3ebe6;
+  --venous:#1f5c8b;
+  --arterial:#c2453a;
+  --amber:#c97a13;
+  --hdf:#6b4fa8;
+  --ok:#0d8878;
+  --shadow:0 1px 0 rgba(15,39,47,.05), 0 8px 24px -18px rgba(15,39,47,.45);
+  --f-lbl:"IBM Plex Sans Condensed",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --f-body:"IBM Plex Sans Condensed",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --f-disp:"IBM Plex Serif",Georgia,serif;
+  --f-num:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:14px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1520px;margin:0 auto;padding:0 20px 64px}
+
+/* ---------- eyebrow / label type ---------- */
+.eyebrow{
+  font-family:var(--f-lbl);font-size:10.5px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+/* ---------- masthead ---------- */
+.mast{
+  border-bottom:1px solid var(--rule);
+  background:linear-gradient(180deg,#fff 0%,#f7fafb 100%);
+  padding:18px 0 0;
+}
+.mast-in{max-width:1520px;margin:0 auto;padding:0 20px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;justify-content:space-between}
+.brand{display:flex;align-items:baseline;gap:12px}
+.brand-mark{
+  font-family:var(--f-num);font-weight:600;font-size:13px;letter-spacing:.12em;
+  color:#fff;background:var(--ink);padding:5px 9px 4px;border-radius:2px;
+}
+.brand h1{
+  font-family:var(--f-disp);font-weight:600;font-size:25px;line-height:1.1;
+  margin:0;letter-spacing:-.015em;
+}
+.brand h1 span{color:var(--ink-3);font-weight:400}
+.mast-meta{display:flex;gap:22px;padding-bottom:2px;flex-wrap:wrap}
+.mast-meta div{text-align:right}
+.mast-meta .v{font-family:var(--f-num);font-size:16px;font-weight:500;display:block;line-height:1.2}
+.mast-tabs{max-width:1520px;margin:14px auto 0;padding:0 20px;display:flex;gap:2px}
+.tab{
+  font-family:var(--f-lbl);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  padding:9px 16px 8px;border:1px solid var(--rule);border-bottom:none;background:var(--panel-2);
+  color:var(--ink-2);cursor:pointer;border-radius:3px 3px 0 0;transform:translateY(1px);
+}
+.tab[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:inset 0 2px 0 var(--dialysate)}
+.tab:focus-visible{outline:2px solid var(--venous);outline-offset:1px;z-index:2}
+
+/* ---------- source / status bar ---------- */
+.srcbar{
+  background:var(--ink);color:#cfe0e3;font-family:var(--f-num);font-size:11.5px;
+  padding:7px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+}
+.srcbar b{color:#fff;font-weight:500}
+.srcbar .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);display:inline-block;margin-right:6px}
+.srcbar.ready .dot{background:#3fd0a8}
+.srcbar.error .dot{background:#ff7a6b}
+.srcbar button,.srcbar label.fake{
+  background:transparent;border:1px solid #3c5860;color:#cfe0e3;font-family:var(--f-num);font-size:11px;
+  padding:3px 9px;border-radius:2px;cursor:pointer;
+}
+.srcbar button:hover,.srcbar label.fake:hover{border-color:#7fa3ab;color:#fff}
+.srcbar .spacer{flex:1}
+
+/* ---------- filter rail ---------- */
+.filters{
+  background:var(--panel);border:1px solid var(--rule);border-top:none;
+  padding:14px 16px;display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;
+  box-shadow:var(--shadow);
+}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-family:var(--f-lbl);font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.fg select,.fg input[type=date],.fg input[type=search]{
+  font-family:var(--f-num);font-size:12.5px;color:var(--ink);background:var(--panel-2);
+  border:1px solid var(--rule);border-radius:2px;padding:6px 8px;min-width:120px;
+}
+.fg input[type=search]{min-width:190px}
+.fg select:focus-visible,.fg input:focus-visible{outline:2px solid var(--venous);outline-offset:0}
+.chips{display:flex;gap:4px}
+.chip{
+  font-family:var(--f-lbl);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  padding:6px 11px;border:1px solid var(--rule);background:var(--panel-2);color:var(--ink-2);
+  cursor:pointer;border-radius:2px;
+}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--venous);outline-offset:1px}
+.toggle{display:flex;align-items:center;gap:7px;font-family:var(--f-lbl);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);cursor:pointer}
+.toggle input{accent-color:var(--dialysate);width:15px;height:15px}
+.btn-ghost{
+  font-family:var(--f-lbl);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  background:none;border:1px solid var(--rule);color:var(--ink-2);padding:7px 12px;border-radius:2px;cursor:pointer;
+}
+.btn-ghost:hover{border-color:var(--ink-2);color:var(--ink)}
+.btn-solid{
+  font-family:var(--f-lbl);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  background:var(--dialysate);border:1px solid var(--dialysate);color:#fff;padding:7px 12px;border-radius:2px;cursor:pointer;
+}
+.btn-solid:hover{background:#0a6f62}
+
+/* ---------- panels ---------- */
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:3px;box-shadow:var(--shadow)}
+.panel-hd{
+  display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  padding:12px 16px 10px;border-bottom:1px solid var(--rule-2);
+}
+.panel-hd h2{font-family:var(--f-lbl);font-size:12px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;margin:0}
+.panel-hd .hint{font-family:var(--f-num);font-size:11px;color:var(--ink-3)}
+.panel-bd{padding:14px 16px 16px}
+
+.grid{display:grid;gap:16px;margin-top:16px}
+.g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g-kpi{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1100px){.g-2,.g-3,.g-kpi{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.g-2,.g-3,.g-kpi{grid-template-columns:1fr}}
+
+/* ---------- KPI readouts ---------- */
+.kpi{padding:14px 16px 15px;position:relative;overflow:hidden}
+.kpi .k-lbl{font-family:var(--f-lbl);font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.kpi .k-val{font-family:var(--f-num);font-size:30px;font-weight:500;letter-spacing:-.02em;line-height:1.1;margin:6px 0 2px}
+.kpi .k-val small{font-size:14px;color:var(--ink-3);font-weight:400;letter-spacing:0}
+.kpi .k-sub{font-family:var(--f-num);font-size:11.5px;color:var(--ink-2)}
+.kpi .k-bar{height:4px;background:var(--rule-2);border-radius:2px;margin-top:10px;overflow:hidden}
+.kpi .k-bar i{display:block;height:100%;background:var(--dialysate)}
+.kpi.warn .k-bar i{background:var(--amber)}
+.kpi.bad .k-bar i{background:var(--arterial)}
+.kpi.warn .k-val{color:var(--amber)}
+.kpi.bad .k-val{color:var(--arterial)}
+
+/* ---------- tables ---------- */
+.tbl-scroll{overflow:auto;max-height:560px;border-top:1px solid var(--rule-2)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+thead th{
+  position:sticky;top:0;z-index:1;background:var(--panel-2);
+  font-family:var(--f-lbl);font-size:10px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-2);text-align:right;padding:9px 10px;border-bottom:1px solid var(--rule);white-space:nowrap;cursor:pointer;
+  user-select:none;
+}
+thead th:first-child,tbody td:first-child{text-align:left}
+thead th[data-sorted]{color:var(--ink)}
+thead th[data-sorted]::after{content:" ▾";color:var(--dialysate)}
+thead th[data-sorted="asc"]::after{content:" ▴"}
+tbody td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--rule-2);font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody td.name{font-family:var(--f-body);font-size:13px;font-weight:500;letter-spacing:.005em}
+tbody tr:hover td{background:#f6fbfb}
+tbody tr.clickable{cursor:pointer}
+td .flag{
+  display:inline-block;font-family:var(--f-lbl);font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  padding:2px 6px;border-radius:2px;margin-left:4px;
+}
+.flag.f-amber{background:#fbf0dd;color:#95590a}
+.flag.f-red{background:#fbe4e1;color:#9c2f26}
+.flag.f-blue{background:#e2ecf5;color:#1a4c74}
+.flag.f-violet{background:#ece6f7;color:#54398c}
+.flag.f-teal{background:var(--dialysate-soft);color:#0a6357}
+.bar-cell{position:relative}
+.bar-cell i{position:absolute;left:6px;right:6px;bottom:3px;height:2px;background:var(--rule-2)}
+.bar-cell i b{display:block;height:100%;background:var(--venous)}
+
+/* ---------- svg chart chrome ---------- */
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.ax{font-family:var(--f-num);font-size:9.5px;fill:var(--ink-3)}
+.ax-lbl{font-family:var(--f-lbl);font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;fill:var(--ink-3)}
+.gridline{stroke:var(--rule-2);stroke-width:1}
+.setpoint{stroke:var(--arterial);stroke-width:1;stroke-dasharray:4 3}
+.setpoint-lbl{font-family:var(--f-num);font-size:9.5px;fill:var(--arterial)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}
+.legend span{font-family:var(--f-lbl);font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+/* ---------- trace strip (signature) ---------- */
+.trace{padding:6px 0 0}
+.trace-tip{
+  position:absolute;pointer-events:none;background:var(--ink);color:#fff;font-family:var(--f-num);font-size:11px;
+  padding:6px 9px;border-radius:2px;white-space:pre;opacity:0;transition:opacity .12s;z-index:9;line-height:1.5;
+}
+.trace-wrap{position:relative}
+
+/* ---------- drawer ---------- */
+.drawer-bg{position:fixed;inset:0;background:rgba(15,39,47,.42);opacity:0;pointer-events:none;transition:opacity .18s;z-index:50}
+.drawer-bg.open{opacity:1;pointer-events:auto}
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;width:min(880px,96vw);background:var(--panel);z-index:51;
+  transform:translateX(102%);transition:transform .22s ease;display:flex;flex-direction:column;
+  box-shadow:-20px 0 50px -30px rgba(15,39,47,.6);
+}
+.drawer.open{transform:none}
+.drawer-hd{padding:16px 20px 14px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.drawer-hd h3{font-family:var(--f-disp);font-size:20px;margin:0 0 3px;font-weight:600}
+.drawer-bd{overflow:auto;padding:0 0 40px}
+.drawer-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--rule-2);border-bottom:1px solid var(--rule)}
+.drawer-stats div{background:var(--panel);padding:11px 14px}
+.drawer-stats .v{font-family:var(--f-num);font-size:17px;display:block}
+.x{background:none;border:1px solid var(--rule);color:var(--ink-2);font-size:16px;line-height:1;padding:6px 10px;cursor:pointer;border-radius:2px;font-family:var(--f-num)}
+
+/* ---------- misc ---------- */
+.empty{padding:44px 20px;text-align:center;color:var(--ink-2)}
+.empty h3{font-family:var(--f-disp);font-size:19px;margin:0 0 8px;color:var(--ink)}
+.empty p{margin:0 auto 6px;max-width:520px}
+.empty code{font-family:var(--f-num);font-size:11.5px;background:var(--panel-2);border:1px solid var(--rule-2);padding:1px 5px;border-radius:2px}
+.note{font-family:var(--f-body);font-size:11.5px;color:var(--ink-3);margin-top:9px;line-height:1.5}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.threshold-note{
+  border-left:2px solid var(--rule);padding:0 0 0 12px;margin:16px 0 0;
+  font-size:11.5px;color:var(--ink-2);line-height:1.6;
+}
+.section-rule{display:flex;align-items:center;gap:14px;margin:30px 0 -2px}
+.section-rule::after{content:"";flex:1;height:1px;background:var(--rule)}
+.section-rule h2{font-family:var(--f-lbl);font-size:11.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin:0;color:var(--ink-2)}
+.section-rule .n{font-family:var(--f-num);font-size:11px;color:var(--ink-3)}
+[hidden]{display:none !important}
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+@media print{
+  body{background:#fff}
+  .srcbar,.filters,.mast-tabs,.drawer,.drawer-bg,.btn-ghost,.btn-solid{display:none !important}
+  .panel{box-shadow:none;break-inside:avoid}
+  .tbl-scroll{max-height:none;overflow:visible}
+}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="mast-in">
+    <div class="brand">
+      <span class="brand-mark">7MED</span>
+      <h1>Treatment review <span>/ haemodialysis</span></h1>
+    </div>
+    <div class="mast-meta">
+      <div><span class="eyebrow">Period</span><span class="v" id="m-period">—</span></div>
+      <div><span class="eyebrow">Sessions</span><span class="v" id="m-sessions">—</span></div>
+      <div><span class="eyebrow">Patients</span><span class="v" id="m-patients">—</span></div>
+      <div><span class="eyebrow">Machines</span><span class="v" id="m-devices">—</span></div>
+    </div>
+  </div>
+  <nav class="mast-tabs" role="tablist" aria-label="Views">
+    <button class="tab" role="tab" data-view="overview" aria-selected="true">Overview</button>
+    <button class="tab" role="tab" data-view="patients" aria-selected="false">Patients</button>
+    <button class="tab" role="tab" data-view="flags" aria-selected="false">Review queue</button>
+    <button class="tab" role="tab" data-view="quality" aria-selected="false">Data quality</button>
+  </nav>
+</header>
+
+<div class="srcbar" id="srcbar">
+  <span><span class="dot"></span><b id="src-state">Loading</b></span>
+  <span id="src-detail">reading Google Sheet…</span>
+  <span class="spacer"></span>
+  <label class="toggle" style="color:#cfe0e3;font-size:10.5px;letter-spacing:.08em"><input type="checkbox" id="auto-refresh" checked> Auto-refresh</label>
+  <button id="btn-reload" type="button">Reload now</button>
+  <label class="fake" for="file-in">Open CSV…</label>
+  <input id="file-in" type="file" accept=".csv,text/csv" class="sr">
+</div>
+
+<div class="wrap">
+
+  <div class="filters" id="filters">
+    <div class="fg"><label for="f-from">From</label><input type="date" id="f-from"></div>
+    <div class="fg"><label for="f-to">To</label><input type="date" id="f-to"></div>
+    <div class="fg"><label for="f-device">Machine</label><select id="f-device"><option value="">All</option></select></div>
+    <div class="fg"><label for="f-modality">Modality</label><select id="f-modality"><option value="">All</option></select></div>
+    <div class="fg">
+      <label>Shift</label>
+      <div class="chips" id="f-shift">
+        <button class="chip" data-shift="Morning" aria-pressed="false" type="button">AM</button>
+        <button class="chip" data-shift="Afternoon" aria-pressed="false" type="button">Noon</button>
+        <button class="chip" data-shift="Evening" aria-pressed="false" type="button">Eve</button>
+        <button class="chip" data-shift="Night" aria-pressed="false" type="button">Night</button>
+      </div>
+    </div>
+    <div class="fg"><label for="f-search">Patient</label><input type="search" id="f-search" placeholder="name…"></div>
+    <div class="fg">
+      <label>&nbsp;</label>
+      <label class="toggle"><input type="checkbox" id="f-mask"> Mask names</label>
+    </div>
+    <div class="fg"><label>&nbsp;</label><button class="btn-ghost" id="btn-reset" type="button">Reset</button></div>
+    <div class="fg"><label>&nbsp;</label><button class="btn-solid" id="btn-export" type="button">Export CSV</button></div>
+  </div>
+
+  <div id="app" hidden>
+
+    <!-- ============ OVERVIEW ============ -->
+    <section data-view="overview">
+
+      <div class="section-rule"><h2>Unit throughput</h2><span class="n" id="rule-throughput"></span></div>
+      <div class="panel" style="margin-top:14px">
+        <div class="panel-hd">
+          <h2>Daily trace</h2>
+          <span class="hint">Sessions per day, with mean Kt/V band below</span>
+        </div>
+        <div class="panel-bd trace">
+          <div class="trace-wrap" id="trace-wrap"></div>
+          <div class="legend">
+            <span><i style="background:var(--dialysate)"></i>Sessions</span>
+            <span><i style="background:#c2453a"></i>Kt/V &lt; 1.2</span>
+            <span><i style="background:#e0b970"></i>1.2 – 1.4</span>
+            <span><i style="background:#0d8878"></i>&ge; 1.4</span>
+            <span><i style="background:var(--rule)"></i>No Kt/V</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid g-kpi" id="kpis"></div>
+
+      <div class="section-rule"><h2>Dialysis adequacy</h2><span class="n">reference: spKt/V &ge; 1.2 · time &ge; 240 min</span></div>
+      <div class="grid g-2" style="margin-top:14px">
+        <div class="panel">
+          <div class="panel-hd"><h2>Kt/V distribution</h2><span class="hint" id="hint-ktv"></span></div>
+          <div class="panel-bd"><div id="c-ktv"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><h2>Effective treatment time</h2><span class="hint" id="hint-time"></span></div>
+          <div class="panel-bd"><div id="c-time"></div></div>
+        </div>
+      </div>
+
+      <div class="grid g-2" style="margin-top:16px">
+        <div class="panel">
+          <div class="panel-hd"><h2>Time on treatment vs Kt/V</h2><span class="hint">one dot = one session</span></div>
+          <div class="panel-bd"><div id="c-scatter"></div>
+            <div class="legend">
+              <span><i style="background:var(--venous)"></i>4008</span>
+              <span><i style="background:var(--hdf)"></i>5008</span>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><h2>Blood flow &amp; UF rate</h2><span class="hint">distribution of session means</span></div>
+          <div class="panel-bd"><div id="c-qb"></div><div id="c-uf" style="margin-top:14px"></div></div>
+        </div>
+      </div>
+
+      <div class="section-rule"><h2>Load &amp; mix</h2><span class="n" id="rule-mix"></span></div>
+      <div class="grid g-3" style="margin-top:14px">
+        <div class="panel">
+          <div class="panel-hd"><h2>Machine</h2><span class="hint">sessions</span></div>
+          <div class="panel-bd"><div id="c-device"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><h2>Modality</h2><span class="hint">from prescription</span></div>
+          <div class="panel-bd"><div id="c-modality"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><h2>Shift load</h2><span class="hint">start time of session</span></div>
+          <div class="panel-bd"><div id="c-shift"></div></div>
+        </div>
+      </div>
+
+      <div class="grid g-2" style="margin-top:16px">
+        <div class="panel">
+          <div class="panel-hd"><h2>Weekday pattern</h2><span class="hint">sessions per weekday</span></div>
+          <div class="panel-bd"><div id="c-weekday"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><h2>Post-dialysis blood pressure</h2><span class="hint" id="hint-bp"></span></div>
+          <div class="panel-bd"><div id="c-bp"></div></div>
+        </div>
+      </div>
+
+      <p class="threshold-note">
+        Thresholds used on this page are the unit's reporting benchmarks, editable in <code>THRESHOLDS</code> at
+        the top of the page script: single-pool Kt/V &ge; 1.2, effective time &ge; 240 min, blood flow &ge; 250 ml/min,
+        UF rate &le; 1000 ml/h, post-dialysis systolic 90–180 mmHg. They flag sessions for a human to look at —
+        they are not a clinical assessment, and every flag needs review against the patient's prescription and notes.
+      </p>
+    </section>
+
+    <!-- ============ PATIENTS ============ -->
+    <section data-view="patients" hidden>
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-hd">
+          <h2>Patient summary</h2>
+          <span class="hint">Click a row for the session history · click a column to sort</span>
+        </div>
+        <div class="tbl-scroll"><table id="t-patients"></table></div>
+      </div>
+    </section>
+
+    <!-- ============ FLAGS ============ -->
+    <section data-view="flags" hidden>
+      <div class="grid g-kpi" id="flag-kpis" style="margin-top:16px"></div>
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-hd">
+          <h2>Sessions to review</h2>
+          <span class="hint" id="hint-flags"></span>
+        </div>
+        <div class="panel-bd" style="padding-bottom:6px">
+          <div class="chips" id="f-flagtype"></div>
+        </div>
+        <div class="tbl-scroll"><table id="t-flags"></table></div>
+      </div>
+    </section>
+
+    <!-- ============ QUALITY ============ -->
+    <section data-view="quality" hidden>
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-hd"><h2>Field completeness</h2><span class="hint">share of filtered sessions with a value</span></div>
+        <div class="panel-bd"><div id="c-fill"></div></div>
+      </div>
+      <div class="grid g-2" style="margin-top:16px">
+        <div class="panel">
+          <div class="panel-hd"><h2>Prescription names as recorded</h2><span class="hint">free text — needs a controlled list</span></div>
+          <div class="tbl-scroll" style="max-height:420px"><table id="t-presc"></table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><h2>Patient name variants</h2><span class="hint">same person, inconsistent entry</span></div>
+          <div class="tbl-scroll" style="max-height:420px"><table id="t-namevar"></table></div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /#app -->
+
+  <div class="panel" id="gate" style="margin-top:16px">
+    <div class="empty">
+      <h3>Reading the treatment sheet</h3>
+      <p>Pulling records from Google Sheets.</p>
+    </div>
+  </div>
+
+</div><!-- /.wrap -->
+
+<div class="drawer-bg" id="drawer-bg"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+  <div class="drawer-hd">
+    <div><h3 id="drawer-title">—</h3><span class="eyebrow" id="drawer-sub">—</span></div>
+    <button class="x" id="drawer-close" type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-stats" id="drawer-stats"></div>
+  <div class="drawer-bd"><table id="t-sessions"></table></div>
+</aside>
+
+<div class="trace-tip" id="tip"></div>
+
+<script>
+"use strict";
+/* ============================================================================
+   CONFIG
+   ========================================================================== */
+const CONFIG = {
+  sheetId: "1T320IqcilCVyanLSAGE98WbAJoOLMy1T2pdFB6eRw4Q",
+  gid: "0",
+  unitName: "7MED"
+};
+// ?sheet=<id>&gid=<n> overrides the values above without editing the file.
+(function(){
+  const q = new URLSearchParams(location.search);
+  if (q.get("sheet")) CONFIG.sheetId = q.get("sheet");
+  if (q.get("gid"))   CONFIG.gid = q.get("gid");
+})();
+
+const THRESHOLDS = {
+  ktvMin: 1.2,        // single-pool Kt/V per session
+  timeMinTarget: 240, // minutes
+  timeAborted: 60,    // minutes — session ended very early
+  qbMin: 250,         // ml/min
+  ufMax: 1000,        // ml/h
+  sbpLow: 90,         // mmHg post-dialysis
+  sbpHigh: 180
+};
+
+/* ============================================================================
+   DATA CORE — pure functions, no DOM. Safe to unit-test in isolation.
+   ========================================================================== */
+
+function parseCSV(text){
+  const rows = []; let row = [], cur = "", q = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){
+      if (c === '"'){ if (text[i+1] === '"'){ cur += '"'; i++; } else q = false; }
+      else cur += c;
+    } else {
+      if (c === '"') q = true;
+      else if (c === ','){ row.push(cur); cur = ""; }
+      else if (c === '\n'){ row.push(cur); rows.push(row); row = []; cur = ""; }
+      else if (c === '\r'){ /* skip */ }
+      else cur += c;
+    }
+  }
+  if (cur !== "" || row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
+
+const norm = s => String(s == null ? "" : s).replace(/\s+/g, " ").trim().toLowerCase();
+
+// Column resolution by predicate so header tweaks / duplicate names don't break it.
+const COLSPEC = [
+  ["first",   h => h.startsWith("first name")],
+  ["last",    h => h.startsWith("last name")],
+  ["date",    h => h.includes("treatment date")],
+  ["device",  h => h.includes("device type")],
+  ["anticoag",h => h.includes("anticoag")],
+  ["presc",   h => h.includes("prescription")],
+  ["art",     h => h.includes("arterial pressure")],
+  ["cond",    h => h.includes("conductivity")],
+  ["iso",     h => h.startsWith("iso volume")],
+  ["subst",   h => h.includes("substitution volume") && !h.includes("post")],
+  ["postsub", h => h.includes("post-sub volume") || h.includes("post sub volume")],
+  ["dflow",   h => h.includes("dialysate flow")],
+  ["qb",      h => h.includes("blood flow")],
+  ["sbp",     h => h.includes("systolic")],
+  ["tmp",     h => h.includes("tmp")],
+  ["hr",      h => h.includes("heart rate")],
+  ["dbp",     h => h.includes("diastolic")],
+  ["uf",      h => h.includes("uf rate")],
+  ["bv",      h => /dialy[sz]ed blood volume/.test(h)],
+  ["ttime",   h => h.includes("treatment time")],
+  ["ktv",     h => h.includes("kt/v")],
+  ["kt",      h => /^effective kt\b/.test(h) && !h.includes("/v")],
+  ["weight",  h => h.includes("weight")]
+];
+
+function resolveColumns(header){
+  const hs = header.map(norm);
+  const col = {};
+  for (const [key, test] of COLSPEC){
+    for (let i = 0; i < hs.length; i++){
+      if (hs[i] && test(hs[i])){ col[key] = i; break; }   // first match wins
+    }
+  }
+  return col;
+}
+
+const MONTHS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+
+// "25 Jun 2026 12:47 PM" (primary) with fallbacks for "25/06/26" and ISO.
+function parseWhen(raw){
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  let m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)?)?/);
+  if (m){
+    const mo = MONTHS.indexOf(m[2].slice(0,3).toLowerCase());
+    if (mo < 0) return null;
+    let hh = m[4] == null ? 0 : parseInt(m[4], 10);
+    const ap = (m[7] || "").toUpperCase();
+    if (ap === "PM" && hh < 12) hh += 12;
+    if (ap === "AM" && hh === 12) hh = 0;
+    return new Date(parseInt(m[3],10), mo, parseInt(m[1],10), hh, m[5] ? parseInt(m[5],10) : 0);
+  }
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);   // dd/mm/yy
+  if (m){
+    let y = parseInt(m[3],10); if (y < 100) y += 2000;
+    return new Date(y, parseInt(m[2],10) - 1, parseInt(m[1],10));
+  }
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+// "3 hours 40 minutes" / "4 minutes" / "3:40" -> minutes
+function parseDuration(raw){
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  const h = s.match(/(\d+)\s*hour/i), mn = s.match(/(\d+)\s*min/i);
+  if (h || mn) return (h ? parseInt(h[1],10) * 60 : 0) + (mn ? parseInt(mn[1],10) : 0);
+  const hm = s.match(/^(\d{1,2}):(\d{2})/);
+  if (hm) return parseInt(hm[1],10) * 60 + parseInt(hm[2],10);
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+function toNum(raw){
+  if (raw == null) return null;
+  const s = String(raw).replace(/,/g,"").trim();
+  if (!s) return null;
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+// Prescription free text -> modality + additives. Doctor names and blanks -> Unspecified.
+function classifyPrescription(raw){
+  const s = norm(raw);
+  const flat = s.replace(/[^a-z0-9]/g, "");
+  let modality = "Unspecified";
+  if (/hdf/.test(flat)) modality = "HDF";
+  else if (/\bhd\b/.test(s) || /^hd/.test(flat) || /onhd/.test(flat)) modality = "HD";
+  const additives = [];
+  if (/bibag/.test(flat)) additives.push("BiBag");
+  if (/bicarb/.test(flat)) additives.push("Liquid bicarb");
+  if (/isolation/.test(flat)) additives.push("Isolation room");
+  const clinical = /(hd|hdf|bibag|bicarb|liq|isolat|iso|dialy|5008|4008|acetate|citrate)/.test(flat);
+  const looksLikeName = modality === "Unspecified" && !clinical && /^[a-z][a-z .]{3,}$/.test(s);
+  return { modality, additives, raw: String(raw || "").trim(), looksLikeName };
+}
+
+function shiftOf(hour){
+  if (hour == null) return "Unknown";
+  if (hour >= 5  && hour < 11) return "Morning";
+  if (hour >= 11 && hour < 16) return "Afternoon";
+  if (hour >= 16 && hour < 20) return "Evening";
+  return "Night";
+}
+
+const SHIFT_ORDER = ["Morning","Afternoon","Evening","Night","Unknown"];
+const pad2 = n => String(n).padStart(2, "0");
+const dayKey = d => d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate());
+const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+function titleCase(s){
+  return String(s || "").toLowerCase().replace(/\b([a-z])/g, (m,c) => c.toUpperCase()).trim();
+}
+
+// Collapse the trailing surname noise the TDMS export produces:
+// "PARVEEN USMANI USMANI-MHD" -> "Parveen Usmani" ; "SHIV DEVI" -> "Shiv Devi"
+function buildName(first, last){
+  const f = titleCase(first), l = titleCase(last);
+  let lastClean = l.replace(/[-\s]*mhd$/i, "").trim();
+  const fWords = f.toLowerCase().split(/\s+/);
+  if (lastClean && fWords.includes(lastClean.toLowerCase())) lastClean = "";
+  const full = (f + " " + lastClean).replace(/\s+/g, " ").trim();
+  return full || f || l || "Unknown";
+}
+
+function maskName(name){
+  const parts = String(name).split(/\s+/).filter(Boolean);
+  if (!parts.length) return "—";
+  return parts[0] + (parts[1] ? " " + parts[1][0] + "." : "");
+}
+
+function buildRecords(rows){
+  if (!rows.length) return { records: [], col: {}, header: [] };
+  const header = rows[0];
+  const col = resolveColumns(header);
+  const get = (r, k) => col[k] == null ? "" : (r[col[k]] == null ? "" : r[col[k]]);
+  const records = [];
+  for (let i = 1; i < rows.length; i++){
+    const r = rows[i];
+    if (!r || !r.some(c => String(c || "").trim())) continue;
+    const when = parseWhen(get(r, "date"));
+    const presc = classifyPrescription(get(r, "presc"));
+    const rec = {
+      i: records.length,
+      firstRaw: String(get(r,"first")).trim(),
+      lastRaw:  String(get(r,"last")).trim(),
+      name:  buildName(get(r,"first"), get(r,"last")),
+      when,
+      day:   when ? dayKey(when) : null,
+      hour:  when ? when.getHours() : null,
+      shift: shiftOf(when ? when.getHours() : null),
+      weekday: when ? when.getDay() : null,
+      device: String(get(r,"device")).trim() || "Unknown",
+      prescRaw: presc.raw,
+      modality: presc.modality,
+      additives: presc.additives,
+      prescLooksLikeName: presc.looksLikeName,
+      ktv:  toNum(get(r,"ktv")),
+      kt:   toNum(get(r,"kt")),
+      mins: parseDuration(get(r,"ttime")),
+      qb:   toNum(get(r,"qb")),
+      uf:   toNum(get(r,"uf")),
+      bv:   toNum(get(r,"bv")),
+      cond: toNum(get(r,"cond")),
+      dflow:toNum(get(r,"dflow")),
+      tmp:  toNum(get(r,"tmp")),
+      art:  toNum(get(r,"art")),
+      anticoag: toNum(get(r,"anticoag")),
+      sbp:  toNum(get(r,"sbp")),
+      dbp:  toNum(get(r,"dbp")),
+      hr:   toNum(get(r,"hr")),
+      weight: toNum(get(r,"weight")),
+      subst: toNum(get(r,"subst")),
+      postsub: toNum(get(r,"postsub")),
+      iso:  toNum(get(r,"iso"))
+    };
+    // Kt/V of exactly 0 is a machine/export artefact, not a measurement.
+    if (rec.ktv === 0) rec.ktv = null;
+    rec.flags = flagsFor(rec);
+    records.push(rec);
+  }
+  return { records, col, header };
+}
+
+const FLAG_DEFS = [
+  { id:"aborted",   label:"Ended early",     tone:"f-red",    test: r => r.mins != null && r.mins > 0 && r.mins < THRESHOLDS.timeAborted },
+  { id:"lowktv",    label:"Kt/V below 1.2",  tone:"f-red",    test: r => r.ktv != null && r.ktv < THRESHOLDS.ktvMin },
+  { id:"shorttime", label:"Under 4 h",       tone:"f-amber",  test: r => r.mins != null && r.mins >= THRESHOLDS.timeAborted && r.mins < THRESHOLDS.timeMinTarget },
+  { id:"highuf",    label:"UF rate high",    tone:"f-amber",  test: r => r.uf != null && r.uf > THRESHOLDS.ufMax },
+  { id:"lowqb",     label:"Blood flow low",  tone:"f-amber",  test: r => r.qb != null && r.qb < THRESHOLDS.qbMin },
+  { id:"hypo",      label:"Post SBP < 90",   tone:"f-red",    test: r => r.sbp != null && r.sbp < THRESHOLDS.sbpLow },
+  { id:"hyper",     label:"Post SBP > 180",  tone:"f-amber",  test: r => r.sbp != null && r.sbp > THRESHOLDS.sbpHigh },
+  { id:"noktv",     label:"No Kt/V",         tone:"f-blue",   test: r => r.ktv == null },
+  { id:"nopresc",   label:"Prescription unclear", tone:"f-violet", test: r => r.modality === "Unspecified" }
+];
+
+function flagsFor(rec){
+  const out = [];
+  for (const f of FLAG_DEFS) if (f.test(rec)) out.push(f.id);
+  return out;
+}
+
+function applyFilters(records, f){
+  return records.filter(r => {
+    if (f.from && (!r.day || r.day < f.from)) return false;
+    if (f.to   && (!r.day || r.day > f.to))   return false;
+    if (f.device && r.device !== f.device) return false;
+    if (f.modality && r.modality !== f.modality) return false;
+    if (f.shifts && f.shifts.length && !f.shifts.includes(r.shift)) return false;
+    if (f.search){
+      const q = f.search.toLowerCase();
+      if (!r.name.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+const stats = arr => {
+  const v = arr.filter(x => x != null && !isNaN(x)).sort((a,b) => a - b);
+  if (!v.length) return { n:0, mean:null, median:null, min:null, max:null, p10:null, p90:null };
+  const q = p => v[Math.min(v.length - 1, Math.max(0, Math.round((v.length - 1) * p)))];
+  return {
+    n: v.length,
+    mean: v.reduce((a,b) => a + b, 0) / v.length,
+    median: q(.5), p10: q(.1), p90: q(.9),
+    min: v[0], max: v[v.length - 1]
+  };
+};
+
+const pct = (num, den) => den ? (num / den) * 100 : 0;
+
+function histogram(values, lo, hi, step){
+  const bins = [];
+  const k = Math.round((hi - lo) / step);
+  for (let i = 0; i < k; i++) bins.push({ lo: lo + i * step, hi: lo + (i + 1) * step, n:0 });
+  let under = 0, over = 0;
+  for (const v of values){
+    if (v == null || isNaN(v)) continue;
+    if (v < lo){ under++; continue; }
+    if (v >= hi){ over++; continue; }
+    const k = Math.min(bins.length - 1, Math.floor((v - lo) / step));
+    bins[k].n++;
+  }
+  return { bins, under, over };
+}
+
+function countBy(records, keyFn){
+  const m = new Map();
+  for (const r of records){
+    const k = keyFn(r);
+    if (k == null) continue;
+    m.set(k, (m.get(k) || 0) + 1);
+  }
+  return m;
+}
+
+function dailySeries(records, from, to){
+  const byDay = new Map();
+  for (const r of records){
+    if (!r.day) continue;
+    if (!byDay.has(r.day)) byDay.set(r.day, []);
+    byDay.get(r.day).push(r);
+  }
+  const keys = [...byDay.keys()].sort();
+  let start = from || keys[0], end = to || keys[keys.length - 1];
+  if (!start || !end) return [];
+  const out = [];
+  const d = new Date(start + "T00:00:00"), stop = new Date(end + "T00:00:00");
+  let guard = 0;
+  while (d <= stop && guard++ < 800){
+    const k = dayKey(d);
+    const rs = byDay.get(k) || [];
+    const ks = stats(rs.map(r => r.ktv));
+    out.push({
+      day: k, date: new Date(d), n: rs.length,
+      weekday: d.getDay(), meanKtv: ks.mean, ktvN: ks.n,
+      meanMins: stats(rs.map(r => r.mins)).mean
+    });
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+
+function patientSummary(records){
+  const m = new Map();
+  for (const r of records){
+    if (!m.has(r.name)) m.set(r.name, []);
+    m.get(r.name).push(r);
+  }
+  const out = [];
+  for (const [name, rs] of m){
+    const ktvs = rs.map(r => r.ktv).filter(v => v != null);
+    const onTarget = ktvs.filter(v => v >= THRESHOLDS.ktvMin).length;
+    const mins = rs.map(r => r.mins).filter(v => v != null);
+    const dates = rs.map(r => r.when).filter(Boolean).sort((a,b) => a - b);
+    const devices = [...new Set(rs.map(r => r.device))];
+    const mods = [...new Set(rs.map(r => r.modality))];
+    out.push({
+      name, sessions: rs.length, rows: rs,
+      meanKtv: ktvs.length ? ktvs.reduce((a,b) => a+b,0)/ktvs.length : null,
+      ktvN: ktvs.length,
+      pctOnTarget: ktvs.length ? pct(onTarget, ktvs.length) : null,
+      meanMins: mins.length ? mins.reduce((a,b) => a+b,0)/mins.length : null,
+      meanQb: stats(rs.map(r => r.qb)).mean,
+      meanUf: stats(rs.map(r => r.uf)).mean,
+      meanBv: stats(rs.map(r => r.bv)).mean,
+      lastWhen: dates.length ? dates[dates.length - 1] : null,
+      firstWhen: dates.length ? dates[0] : null,
+      devices, modalities: mods,
+      flagCount: rs.reduce((a,r) => a + r.flags.filter(f => f !== "noktv" && f !== "nopresc").length, 0)
+    });
+  }
+  return out.sort((a,b) => b.sessions - a.sessions);
+}
+
+function fillRates(records, header, col){
+  const keys = COLSPEC.map(c => c[0]).filter(k => col[k] != null);
+  const nice = {
+    first:"First name", last:"Last name", date:"Treatment date", device:"Machine",
+    anticoag:"Anticoagulant rate", presc:"Prescription", art:"Arterial pressure",
+    cond:"Dialysate conductivity", iso:"ISO volume", subst:"Substitution volume",
+    postsub:"Post-sub volume", dflow:"Dialysate flow", qb:"Blood flow", sbp:"Post systolic BP",
+    tmp:"TMP", hr:"Post heart rate", dbp:"Post diastolic BP", uf:"UF rate",
+    bv:"Dialysed blood volume", ttime:"Treatment time", ktv:"Kt/V", kt:"Kt", weight:"Post weight"
+  };
+  const map = {
+    date:r => r.when != null, ttime:r => r.mins != null, ktv:r => r.ktv != null, kt:r => r.kt != null,
+    qb:r => r.qb != null, uf:r => r.uf != null, bv:r => r.bv != null, sbp:r => r.sbp != null,
+    dbp:r => r.dbp != null, hr:r => r.hr != null, weight:r => r.weight != null, cond:r => r.cond != null,
+    dflow:r => r.dflow != null, tmp:r => r.tmp != null, art:r => r.art != null, anticoag:r => r.anticoag != null,
+    subst:r => r.subst != null, iso:r => r.iso != null, postsub:r => r.postsub != null,
+    first:r => !!r.firstRaw, last:r => !!r.lastRaw, device:r => r.device !== "Unknown", presc:r => !!r.prescRaw
+  };
+  return keys.map(k => {
+    const test = map[k] || (r => !!r);
+    const n = records.filter(test).length;
+    return { key:k, label:nice[k] || k, n, pct: pct(n, records.length) };
+  }).sort((a,b) => a.pct - b.pct);
+}
+
+function nameVariants(records){
+  const m = new Map();
+  for (const r of records){
+    const k = r.name.toLowerCase();
+    if (!m.has(k)) m.set(k, { name:r.name, raws:new Map(), n:0 });
+    const e = m.get(k);
+    e.n++;
+    const raw = (r.firstRaw + " | " + r.lastRaw).trim();
+    e.raws.set(raw, (e.raws.get(raw) || 0) + 1);
+  }
+  return [...m.values()].filter(e => e.raws.size > 1)
+    .sort((a,b) => b.raws.size - a.raws.size || b.n - a.n);
+}
+
+/* ============================================================================
+   END DATA CORE
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   SVG chart helpers
+   ------------------------------------------------------------------------- */
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (v, d = 0) => v == null || isNaN(v) ? "—" : Number(v).toLocaleString("en-IN", { minimumFractionDigits:d, maximumFractionDigits:d });
+const fmtMins = v => v == null || isNaN(v) ? "—" : Math.floor(v/60) + "h " + pad2(Math.round(v % 60)) + "m";
+const fmtDate = d => d ? d.getDate() + " " + ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()] : "—";
+const fmtDT = d => d ? fmtDate(d) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) : "—";
+
+function svg(inner, w, h){
+  return '<svg class="chart" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet" role="img">' + inner + '</svg>';
+}
+
+function barChart(items, opts){
+  opts = opts || {};
+  const w = 520, h = opts.height || 190;
+  const pl = 44, pr = 14, pt = 14, pb = 34;
+  const iw = w - pl - pr, ih = h - pt - pb;
+  const max = Math.max(1, ...items.map(d => d.n));
+  const bw = iw / Math.max(1, items.length);
+  let s = "";
+  for (let g = 0; g <= 4; g++){
+    const y = pt + ih - (ih * g / 4);
+    s += '<line class="gridline" x1="' + pl + '" y1="' + y + '" x2="' + (w - pr) + '" y2="' + y + '"/>';
+    s += '<text class="ax" x="' + (pl - 7) + '" y="' + (y + 3.2) + '" text-anchor="end">' + fmt(max * g / 4) + '</text>';
+  }
+  if (opts.setpoint != null && opts.spX != null){
+    const x = pl + opts.spX * iw;
+    s += '<line class="setpoint" x1="' + x + '" y1="' + pt + '" x2="' + x + '" y2="' + (pt + ih) + '"/>';
+    s += '<text class="setpoint-lbl" x="' + (x + 4) + '" y="' + (pt + 10) + '">' + esc(opts.setpointLabel || "") + '</text>';
+  }
+  items.forEach((d, i) => {
+    const bh = ih * d.n / max;
+    const x = pl + i * bw + bw * .14, ww = bw * .72;
+    s += '<rect x="' + x.toFixed(1) + '" y="' + (pt + ih - bh).toFixed(1) + '" width="' + ww.toFixed(1) + '" height="' + Math.max(0, bh).toFixed(1) +
+         '" fill="' + (d.color || "var(--venous)") + '" rx="1"><title>' + esc(d.label) + ' · ' + fmt(d.n) + '</title></rect>';
+    if (items.length <= 16 || i % Math.ceil(items.length / 12) === 0){
+      s += '<text class="ax" x="' + (pl + i * bw + bw / 2).toFixed(1) + '" y="' + (pt + ih + 13) + '" text-anchor="middle">' + esc(d.short || d.label) + '</text>';
+    }
+  });
+  if (opts.xlabel) s += '<text class="ax-lbl" x="' + (pl + iw / 2) + '" y="' + (h - 4) + '" text-anchor="middle">' + esc(opts.xlabel) + '</text>';
+  return svg(s, w, h);
+}
+
+function hbarChart(items, opts){
+  opts = opts || {};
+  const rowH = 26, w = 520, h = items.length * rowH + 16;
+  const pl = opts.labelWidth || 108, pr = 52;
+  const iw = w - pl - pr;
+  const max = Math.max(1, ...items.map(d => d.n));
+  let s = "";
+  items.forEach((d, i) => {
+    const y = 8 + i * rowH;
+    const bw = iw * d.n / max;
+    s += '<text class="ax" x="' + (pl - 9) + '" y="' + (y + rowH/2 + 3) + '" text-anchor="end" style="font-size:11px;fill:var(--ink-2)">' + esc(d.label) + '</text>';
+    s += '<rect x="' + pl + '" y="' + (y + 5) + '" width="' + Math.max(1.5, bw).toFixed(1) + '" height="' + (rowH - 12) + '" rx="1" fill="' + (d.color || "var(--dialysate)") + '"><title>' + esc(d.label) + ' · ' + fmt(d.n) + '</title></rect>';
+    s += '<text class="ax" x="' + (pl + bw + 7).toFixed(1) + '" y="' + (y + rowH/2 + 3.4) + '" style="font-size:11px;fill:var(--ink)">' + fmt(d.n) + (d.suffix || "") + '</text>';
+  });
+  return svg(s, w, h);
+}
+
+function donutChart(items, opts){
+  opts = opts || {};
+  const w = 320, h = 190, cx = 92, cy = h / 2, R = 66, r = 40;
+  const total = items.reduce((a,b) => a + b.n, 0) || 1;
+  let a0 = -Math.PI / 2, s = "";
+  items.forEach(d => {
+    const a1 = a0 + (d.n / total) * Math.PI * 2;
+    const big = (a1 - a0) > Math.PI ? 1 : 0;
+    const p = (rad, a) => [(cx + rad * Math.cos(a)).toFixed(2), (cy + rad * Math.sin(a)).toFixed(2)];
+    const [x0,y0] = p(R,a0), [x1,y1] = p(R,a1), [x2,y2] = p(r,a1), [x3,y3] = p(r,a0);
+    s += '<path d="M' + x0 + ' ' + y0 + ' A' + R + ' ' + R + ' 0 ' + big + ' 1 ' + x1 + ' ' + y1 +
+         ' L' + x2 + ' ' + y2 + ' A' + r + ' ' + r + ' 0 ' + big + ' 0 ' + x3 + ' ' + y3 + ' Z" fill="' + d.color +
+         '" stroke="#fff" stroke-width="1.5"><title>' + esc(d.label) + ' · ' + fmt(d.n) + '</title></path>';
+    a0 = a1;
+  });
+  s += '<text x="' + cx + '" y="' + (cy - 2) + '" text-anchor="middle" style="font-family:var(--f-num);font-size:20px;fill:var(--ink)">' + fmt(total) + '</text>';
+  s += '<text x="' + cx + '" y="' + (cy + 13) + '" text-anchor="middle" class="ax-lbl">' + esc(opts.centerLabel || "total") + '</text>';
+  items.forEach((d, i) => {
+    const y = 26 + i * 21;
+    s += '<rect x="184" y="' + (y - 8) + '" width="10" height="10" rx="2" fill="' + d.color + '"/>';
+    s += '<text class="ax" x="200" y="' + y + '" style="font-size:11.5px;fill:var(--ink-2)">' + esc(d.label) + '</text>';
+    s += '<text class="ax" x="' + (w - 4) + '" y="' + y + '" text-anchor="end" style="font-size:11.5px;fill:var(--ink)">' + fmt(d.n) + '  ' + fmt(pct(d.n,total),0) + '%</text>';
+  });
+  return svg(s, w, h);
+}
+
+function scatterChart(pts, opts){
+  opts = opts || {};
+  const w = 520, h = 260, pl = 46, pr = 16, pt = 16, pb = 38;
+  const iw = w - pl - pr, ih = h - pt - pb;
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const xmax = opts.xmax != null ? opts.xmax : Math.max(1, ...xs);
+  const ymax = opts.ymax != null ? opts.ymax : Math.max(1, ...ys);
+  const X = v => pl + (v / xmax) * iw, Y = v => pt + ih - (v / ymax) * ih;
+  let s = "";
+  for (let g = 0; g <= 4; g++){
+    const y = pt + ih - ih * g / 4;
+    s += '<line class="gridline" x1="' + pl + '" y1="' + y + '" x2="' + (w-pr) + '" y2="' + y + '"/>';
+    s += '<text class="ax" x="' + (pl - 7) + '" y="' + (y + 3.2) + '" text-anchor="end">' + fmt(ymax * g / 4, opts.ydec || 0) + '</text>';
+  }
+  for (let g = 0; g <= 5; g++){
+    const x = pl + iw * g / 5;
+    s += '<text class="ax" x="' + x + '" y="' + (pt + ih + 14) + '" text-anchor="middle">' + fmt(xmax * g / 5) + '</text>';
+  }
+  if (opts.hline != null){
+    const y = Y(opts.hline);
+    s += '<line class="setpoint" x1="' + pl + '" y1="' + y + '" x2="' + (w-pr) + '" y2="' + y + '"/>';
+    s += '<text class="setpoint-lbl" x="' + (w - pr - 2) + '" y="' + (y - 5) + '" text-anchor="end">' + esc(opts.hlineLabel || "") + '</text>';
+  }
+  if (opts.vline != null){
+    const x = X(opts.vline);
+    s += '<line class="setpoint" x1="' + x + '" y1="' + pt + '" x2="' + x + '" y2="' + (pt+ih) + '"/>';
+    s += '<text class="setpoint-lbl" x="' + (x + 4) + '" y="' + (pt + 10) + '">' + esc(opts.vlineLabel || "") + '</text>';
+  }
+  for (const p of pts){
+    if (p.x == null || p.y == null || p.x > xmax || p.y > ymax) continue;
+    s += '<circle cx="' + X(p.x).toFixed(1) + '" cy="' + Y(p.y).toFixed(1) + '" r="2.6" fill="' + p.color + '" fill-opacity=".5"><title>' + esc(p.title || "") + '</title></circle>';
+  }
+  s += '<text class="ax-lbl" x="' + (pl + iw/2) + '" y="' + (h - 4) + '" text-anchor="middle">' + esc(opts.xlabel || "") + '</text>';
+  s += '<text class="ax-lbl" x="12" y="' + (pt + ih/2) + '" text-anchor="middle" transform="rotate(-90 12 ' + (pt + ih/2) + ')">' + esc(opts.ylabel || "") + '</text>';
+  return svg(s, w, h);
+}
+
+// Signature element: sessions-per-day trace with a Kt/V band underneath.
+function traceStrip(series){
+  const w = 1000, h = 170;
+  const pl = 40, pr = 16, pt = 16;
+  const traceH = 92, bandH = 16, bandGap = 12;
+  const iw = w - pl - pr;
+  const max = Math.max(1, ...series.map(d => d.n));
+  const step = iw / Math.max(1, series.length);
+  const X = i => pl + i * step + step / 2;
+  const Y = n => pt + traceH - (n / max) * traceH;
+  const mean = series.length ? series.reduce((a,b) => a + b.n, 0) / series.length : 0;
+  const ktvColor = d => d.ktvN === 0 ? "var(--rule)" : d.meanKtv < 1.2 ? "#c2453a" : d.meanKtv < 1.4 ? "#e0b970" : "#0d8878";
+  let s = "";
+  for (let g = 0; g <= 3; g++){
+    const y = pt + traceH - traceH * g / 3;
+    s += '<line class="gridline" x1="' + pl + '" y1="' + y + '" x2="' + (w-pr) + '" y2="' + y + '"/>';
+    s += '<text class="ax" x="' + (pl-7) + '" y="' + (y+3.2) + '" text-anchor="end">' + fmt(max*g/3) + '</text>';
+  }
+  // Sunday markers — the unit runs a lighter roster
+  series.forEach((d,i) => {
+    if (d.weekday === 0)
+      s += '<rect x="' + (pl + i*step).toFixed(1) + '" y="' + pt + '" width="' + step.toFixed(1) + '" height="' + traceH + '" fill="#f0f5f6"/>';
+  });
+  const my = Y(mean);
+  s += '<line class="setpoint" x1="' + pl + '" y1="' + my.toFixed(1) + '" x2="' + (w-pr) + '" y2="' + my.toFixed(1) + '"/>';
+  s += '<text class="setpoint-lbl" x="' + (w-pr-2) + '" y="' + (my-5).toFixed(1) + '" text-anchor="end">mean ' + fmt(mean,1) + '/day</text>';
+  if (series.length){
+    let area = 'M' + X(0).toFixed(1) + ' ' + (pt+traceH);
+    series.forEach((d,i) => { area += ' L' + X(i).toFixed(1) + ' ' + Y(d.n).toFixed(1); });
+    area += ' L' + X(series.length-1).toFixed(1) + ' ' + (pt+traceH) + ' Z';
+    s += '<path d="' + area + '" fill="var(--dialysate)" fill-opacity=".12"/>';
+    let line = "";
+    series.forEach((d,i) => { line += (i ? ' L' : 'M') + X(i).toFixed(1) + ' ' + Y(d.n).toFixed(1); });
+    s += '<path d="' + line + '" fill="none" stroke="var(--dialysate)" stroke-width="1.8" stroke-linejoin="round"/>';
+  }
+  series.forEach((d,i) => {
+    s += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.n).toFixed(1) + '" r="2.6" fill="#fff" stroke="var(--dialysate)" stroke-width="1.4"/>';
+  });
+  const by = pt + traceH + bandGap;
+  s += '<text class="ax-lbl" x="' + (pl-7) + '" y="' + (by+11.5) + '" text-anchor="end" style="font-size:8.5px">Kt/V</text>';
+  series.forEach((d,i) => {
+    s += '<rect x="' + (pl + i*step + 1).toFixed(1) + '" y="' + by + '" width="' + Math.max(1.5, step-2).toFixed(1) + '" height="' + bandH + '" rx="1" fill="' + ktvColor(d) + '"/>';
+  });
+  const ly = by + bandH + 14;
+  series.forEach((d,i) => {
+    const show = series.length <= 33 ? (d.date.getDate() % 2 === 1 || series.length <= 16) : i % Math.ceil(series.length/16) === 0;
+    if (show) s += '<text class="ax" x="' + X(i).toFixed(1) + '" y="' + ly + '" text-anchor="middle">' + d.date.getDate() + '</text>';
+  });
+  series.forEach((d,i) => {
+    s += '<rect class="hot" x="' + (pl + i*step).toFixed(1) + '" y="' + pt + '" width="' + step.toFixed(1) + '" height="' + (traceH + bandGap + bandH) +
+         '" fill="transparent" data-i="' + i + '" style="cursor:crosshair"/>';
+  });
+  return svg(s, w, h);
+}
+
+/* ---------------------------------------------------------------------------
+   STATE + WIRING
+   ------------------------------------------------------------------------- */
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+const STATE = {
+  all: [], col: {}, header: [],
+  filtered: [], series: [], patients: [],
+  filters: { from:"", to:"", device:"", modality:"", shifts:[], search:"" },
+  mask: false, view:"overview",
+  sortPatients: { key:"sessions", dir:"desc" },
+  sortFlags: { key:"when", dir:"desc" },
+  flagFilter: "",
+  bounds: { min:"", max:"" },
+  auto: true, lastRead: null
+};
+
+const REFRESH_MS = 3 * 60 * 1000;   // how often the page re-reads the sheet
+let refreshTimer = null;
+
+function setStatus(state, detail, cls){
+  $("#src-state").textContent = state;
+  $("#src-detail").textContent = detail;
+  $("#srcbar").className = "srcbar" + (cls ? " " + cls : "");
+}
+
+const SHEET_URL = () =>
+  "https://docs.google.com/spreadsheets/d/" + CONFIG.sheetId + "/gviz/tq?tqx=out:csv&gid=" + CONFIG.gid + "&t=" + Date.now();
+
+async function loadSheet(isRefresh){
+  if (!isRefresh) setStatus("Loading", "reading Google Sheet…", "");
+  try{
+    const res = await fetch(SHEET_URL(), { cache:"no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const text = await res.text();
+    if (/^\s*</.test(text)) throw new Error("Sheet returned a sign-in page, not data");
+    ingest(text, "Google Sheet", isRefresh);
+  } catch(err){
+    // A failed poll keeps the last good read on screen — it just stops claiming to be current.
+    if (isRefresh && STATE.all.length)
+      setStatus("Stale", String(err.message || err) + " · showing the " +
+        (STATE.lastRead ? STATE.lastRead.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : "last") + " read", "error");
+    else showGateError(err);
+  }
+}
+
+function scheduleRefresh(){
+  clearInterval(refreshTimer);
+  if (!STATE.auto) return;
+  refreshTimer = setInterval(() => {
+    // Don't yank the ground away while someone is reading a patient's history.
+    if (document.visibilityState !== "visible") return;
+    if ($("#drawer").classList.contains("open")) return;
+    loadSheet(true);
+  }, REFRESH_MS);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !STATE.auto || !STATE.all.length) return;
+  if (STATE.lastRead && Date.now() - STATE.lastRead < REFRESH_MS) return;
+  loadSheet(true);
+});
+
+function showGateError(err){
+  setStatus("Cannot read sheet", String(err.message || err), "error");
+  $("#app").hidden = true;
+  $("#gate").hidden = false;
+  $("#gate").innerHTML =
+    '<div class="empty"><h3>The sheet is not readable from this page</h3>' +
+    '<p>' + esc(String(err.message || err)) + '</p>' +
+    '<p style="margin-top:14px">Two ways to fix it:</p>' +
+    '<p><b>1. Open the sheet to this page</b> — in Google Sheets, <code>Share</code> → General access → ' +
+    '<code>Anyone with the link</code> → Viewer. Reload here afterwards.</p>' +
+    '<p><b>2. Keep the sheet private</b> — download it as CSV and use <code>Open CSV…</code> in the bar above. ' +
+    'Nothing leaves the browser.</p></div>';
+}
+
+function ingest(csvText, sourceLabel, isRefresh){
+  const rows = parseCSV(csvText);
+  const built = buildRecords(rows);
+  if (!built.records.length){
+    if (isRefresh && STATE.all.length) return setStatus("Stale", "the sheet came back empty · showing the last good read", "error");
+    return showGateError(new Error("No data rows found in the file"));
+  }
+  const prevCount = STATE.all.length, prevBounds = { ...STATE.bounds };
+  STATE.all = built.records; STATE.col = built.col; STATE.header = built.header;
+  const days = built.records.map(r => r.day).filter(Boolean).sort();
+  STATE.bounds = { min: days[0] || "", max: days[days.length-1] || "" };
+
+  // The date window follows the sheet unless it has been narrowed by hand.
+  const holdFrom = isRefresh && STATE.filters.from && STATE.filters.from !== prevBounds.min;
+  const holdTo   = isRefresh && STATE.filters.to   && STATE.filters.to   !== prevBounds.max;
+  if (!holdFrom) STATE.filters.from = STATE.bounds.min;
+  if (!holdTo)   STATE.filters.to   = STATE.bounds.max;
+  const from = $("#f-from"), to = $("#f-to");
+  from.min = to.min = STATE.bounds.min; from.max = to.max = STATE.bounds.max;
+  from.value = STATE.filters.from; to.value = STATE.filters.to;
+
+  STATE.filters.device   = fillSelect("#f-device", [...countBy(built.records, r => r.device).keys()].sort(), STATE.filters.device);
+  STATE.filters.modality = fillSelect("#f-modality", ["HD","HDF","Unspecified"].filter(m => built.records.some(r => r.modality === m)), STATE.filters.modality);
+  if (!isRefresh) buildFlagChips();
+
+  STATE.lastRead = new Date();
+  const added = isRefresh ? built.records.length - prevCount : 0;
+  setStatus("Ready", sourceLabel + " · " + fmt(built.records.length) + " sessions" +
+    (added > 0 ? " · " + fmt(added) + " new since last read" : "") +
+    " · read " + STATE.lastRead.toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit" }) +
+    (STATE.auto ? " · re-reads every " + (REFRESH_MS/60000) + " min" : ""), "ready");
+  $("#gate").hidden = true; $("#app").hidden = false;
+  render();
+  scheduleRefresh();
+}
+
+function fillSelect(sel, values, keep){
+  const el = $(sel);
+  el.innerHTML = '<option value="">All</option>' + values.map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join("");
+  el.value = keep && values.includes(keep) ? keep : "";
+  return el.value;
+}
+
+function buildFlagChips(){
+  $("#f-flagtype").innerHTML = '<button class="chip" data-flag="" aria-pressed="true" type="button">All flags</button>' +
+    FLAG_DEFS.map(f => '<button class="chip" data-flag="' + f.id + '" aria-pressed="false" type="button">' + esc(f.label) + '</button>').join("");
+}
+
+const dispName = n => STATE.mask ? maskName(n) : n;
+
+function render(){
+  STATE.filtered = applyFilters(STATE.all, STATE.filters);
+  STATE.series   = dailySeries(STATE.filtered, STATE.filters.from || null, STATE.filters.to || null);
+  STATE.patients = patientSummary(STATE.filtered);
+  renderMast(); renderTrace(); renderKpis(); renderAdequacy(); renderMix();
+  renderPatients(); renderFlags(); renderQuality();
+}
+
+function renderMast(){
+  const f = STATE.filtered;
+  const days = f.map(r => r.day).filter(Boolean).sort();
+  $("#m-period").textContent = days.length
+    ? fmtDate(new Date(days[0] + "T00:00:00")) + " – " + fmtDate(new Date(days[days.length-1] + "T00:00:00"))
+    : "—";
+  $("#m-sessions").textContent = fmt(f.length);
+  $("#m-patients").textContent = fmt(new Set(f.map(r => r.name)).size);
+  $("#m-devices").textContent = [...countBy(f, r => r.device).keys()].sort().join(" · ") || "—";
+  $("#rule-throughput").textContent = STATE.series.length + " days · " +
+    fmt(STATE.series.length ? f.length / STATE.series.length : 0, 1) + " sessions/day";
+}
+
+function renderTrace(){
+  $("#trace-wrap").innerHTML = traceStrip(STATE.series);
+  const tip = $("#tip");
+  $$("#trace-wrap .hot").forEach(el => {
+    el.addEventListener("mousemove", ev => {
+      const d = STATE.series[+el.dataset.i]; if (!d) return;
+      tip.textContent = WEEKDAYS[d.weekday] + " " + fmtDate(d.date) + "\n" +
+        d.n + " sessions\nmean Kt/V " + (d.ktvN ? fmt(d.meanKtv,2) : "—") +
+        "\nmean time " + fmtMins(d.meanMins);
+      tip.style.opacity = "1";
+      tip.style.left = Math.min(window.innerWidth - 170, ev.clientX + 14) + "px";
+      tip.style.top  = (ev.clientY + window.scrollY - 8) + "px";
+    });
+    el.addEventListener("mouseleave", () => { tip.style.opacity = "0"; });
+  });
+}
+
+function kpiCard(o){
+  return '<div class="panel kpi ' + (o.tone || "") + '">' +
+    '<span class="k-lbl">' + esc(o.label) + '</span>' +
+    '<div class="k-val">' + o.value + (o.unit ? '<small> ' + esc(o.unit) + '</small>' : "") + '</div>' +
+    '<div class="k-sub">' + o.sub + '</div>' +
+    (o.bar != null ? '<div class="k-bar"><i style="width:' + Math.max(0, Math.min(100, o.bar)).toFixed(1) + '%"></i></div>' : "") +
+    '</div>';
+}
+
+function renderKpis(){
+  const f = STATE.filtered;
+  const ktv = stats(f.map(r => r.ktv));
+  const onTarget = f.filter(r => r.ktv != null && r.ktv >= THRESHOLDS.ktvMin).length;
+  const ktvShare = pct(onTarget, ktv.n);
+  const mins = stats(f.map(r => r.mins).filter(v => v != null && v >= THRESHOLDS.timeAborted));
+  const fullTime = f.filter(r => r.mins != null && r.mins >= THRESHOLDS.timeMinTarget).length;
+  const timeShare = pct(fullTime, f.filter(r => r.mins != null).length);
+  const uf = stats(f.map(r => r.uf));
+  const qb = stats(f.map(r => r.qb));
+  const pats = new Set(f.map(r => r.name)).size;
+  $("#kpis").innerHTML = [
+    kpiCard({
+      label:"Kt/V on target", value: fmt(ktvShare,1), unit:"%",
+      sub: fmt(onTarget) + " of " + fmt(ktv.n) + " measured · mean " + fmt(ktv.mean,2),
+      bar: ktvShare, tone: ktvShare >= 85 ? "" : ktvShare >= 70 ? "warn" : "bad"
+    }),
+    kpiCard({
+      label:"Sessions ≥ 4 hours", value: fmt(timeShare,1), unit:"%",
+      sub: "median " + fmtMins(mins.median) + " · " + fmt(f.filter(r => r.flags.includes("aborted")).length) + " ended early",
+      bar: timeShare, tone: timeShare >= 85 ? "" : timeShare >= 60 ? "warn" : "bad"
+    }),
+    kpiCard({
+      label:"Sessions per patient", value: fmt(pats ? f.length / pats : 0, 1),
+      sub: fmt(pats) + " patients · " + fmt(f.length) + " sessions",
+      bar: null
+    }),
+    kpiCard({
+      label:"Mean UF rate", value: fmt(uf.mean,0), unit:"ml/h",
+      sub: "blood flow " + fmt(qb.mean,0) + " ml/min · " + fmt(f.filter(r => r.flags.includes("highuf")).length) + " above " + THRESHOLDS.ufMax,
+      bar: null, tone: uf.mean > THRESHOLDS.ufMax ? "warn" : ""
+    })
+  ].join("");
+}
+
+function renderAdequacy(){
+  const f = STATE.filtered;
+  const kv = f.map(r => r.ktv).filter(v => v != null);
+  const kh = histogram(kv, 0.2, 2.6, 0.1);
+  $("#c-ktv").innerHTML = barChart(kh.bins.map(b => ({
+    label: b.lo.toFixed(1) + "–" + b.hi.toFixed(1), short: b.lo.toFixed(1),
+    n: b.n, color: b.hi <= THRESHOLDS.ktvMin ? "var(--arterial)" : b.lo < 1.4 ? "#e0b970" : "var(--dialysate)"
+  })), { xlabel:"single-pool Kt/V", spX:(THRESHOLDS.ktvMin - .2)/2.4, setpoint:1, setpointLabel:"1.2 target" });
+  const s = stats(kv);
+  $("#hint-ktv").textContent = "n=" + fmt(s.n) + " · median " + fmt(s.median,2) + " · p10 " + fmt(s.p10,2) +
+    " · p90 " + fmt(s.p90,2) + clipNote(kh);
+
+  const tm = f.map(r => r.mins).filter(v => v != null);
+  const th = histogram(tm, 0, 360, 20);
+  $("#c-time").innerHTML = barChart(th.bins.map(b => ({
+    label: b.lo + "–" + b.hi + " min", short: String(b.lo),
+    n: b.n, color: b.hi <= THRESHOLDS.timeAborted ? "var(--arterial)" : b.hi <= THRESHOLDS.timeMinTarget ? "#e0b970" : "var(--dialysate)"
+  })), { xlabel:"minutes on treatment", spX:THRESHOLDS.timeMinTarget/360, setpoint:1, setpointLabel:"240 min" });
+  const ts = stats(tm);
+  $("#hint-time").textContent = "median " + fmtMins(ts.median) + " · shortest " + fmtMins(ts.min) +
+    " · longest " + fmtMins(ts.max) + clipNote(th);
+
+  $("#c-scatter").innerHTML = scatterChart(
+    f.filter(r => r.mins != null && r.ktv != null).map(r => ({
+      x: r.mins, y: r.ktv, color: r.device === "5008" ? "var(--hdf)" : "var(--venous)",
+      title: dispName(r.name) + " · " + fmtDT(r.when) + " · " + fmtMins(r.mins) + " · Kt/V " + fmt(r.ktv,2)
+    })),
+    { xmax:360, ymax:2.6, ydec:1, xlabel:"minutes on treatment", ylabel:"Kt/V",
+      hline:THRESHOLDS.ktvMin, hlineLabel:"Kt/V 1.2", vline:THRESHOLDS.timeMinTarget, vlineLabel:"240 min" }
+  );
+
+  const qh = histogram(f.map(r => r.qb).filter(v => v != null), 60, 480, 30);
+  $("#c-qb").innerHTML = barChart(qh.bins.map(b => ({
+    label: b.lo + "–" + b.hi, short: String(b.lo), n: b.n,
+    color: b.hi <= THRESHOLDS.qbMin ? "var(--amber)" : "var(--venous)"
+  })), { xlabel:"effective blood flow ml/min", height:160, spX:(THRESHOLDS.qbMin - 60)/420, setpoint:1, setpointLabel:"250" });
+  const uh = histogram(f.map(r => r.uf).filter(v => v != null), 0, 1500, 125);
+  $("#c-uf").innerHTML = barChart(uh.bins.map(b => ({
+    label: b.lo + "–" + b.hi, short: String(b.lo), n: b.n,
+    color: b.lo >= THRESHOLDS.ufMax ? "#e0b970" : "var(--venous)"
+  })), { xlabel:"mean UF rate ml/h", height:160, spX:THRESHOLDS.ufMax/1500, setpoint:1, setpointLabel:String(THRESHOLDS.ufMax) });
+}
+
+function clipNote(h){
+  const bits = [];
+  if (h.under) bits.push(h.under + " below scale");
+  if (h.over)  bits.push(h.over + " above scale");
+  return bits.length ? " · " + bits.join(", ") : "";
+}
+
+function renderMix(){
+  const f = STATE.filtered;
+  const devColors = { "4008":"var(--venous)", "5008":"var(--hdf)", "Unknown":"var(--rule)" };
+  const dev = [...countBy(f, r => r.device)].sort((a,b) => b[1]-a[1])
+    .map(([k,n]) => ({ label:k, n, color: devColors[k] || "var(--ink-3)" }));
+  $("#c-device").innerHTML = donutChart(dev, { centerLabel:"sessions" });
+  const modColors = { HD:"var(--dialysate)", HDF:"var(--hdf)", Unspecified:"var(--amber)" };
+  const mod = [...countBy(f, r => r.modality)].sort((a,b) => b[1]-a[1])
+    .map(([k,n]) => ({ label:k, n, color: modColors[k] || "var(--ink-3)" }));
+  $("#c-modality").innerHTML = donutChart(mod, { centerLabel:"sessions" });
+  const sh = countBy(f, r => r.shift);
+  $("#c-shift").innerHTML = hbarChart(
+    SHIFT_ORDER.filter(s => sh.has(s)).map(s => ({
+      label: s + (s === "Morning" ? " 05–11" : s === "Afternoon" ? " 11–16" : s === "Evening" ? " 16–20" : s === "Night" ? " 20–05" : ""),
+      n: sh.get(s), color:"var(--venous)"
+    })), { labelWidth:132 });
+  const wd = countBy(f, r => r.weekday);
+  $("#c-weekday").innerHTML = barChart(
+    [1,2,3,4,5,6,0].filter(d => wd.has(d)).map(d => ({ label:WEEKDAYS[d], short:WEEKDAYS[d], n:wd.get(d),
+      color: d === 0 ? "var(--ink-3)" : "var(--dialysate)" })),
+    { xlabel:"", height:170 }
+  );
+  $("#rule-mix").textContent = mod.map(m => m.label + " " + fmt(pct(m.n, f.length),0) + "%").join(" · ");
+
+  const sbp = f.map(r => r.sbp).filter(v => v != null);
+  const bh = histogram(sbp, 60, 260, 20);
+  $("#c-bp").innerHTML = barChart(bh.bins.map(b => ({
+    label: b.lo + "–" + b.hi, short: String(b.lo), n: b.n,
+    color: b.hi <= THRESHOLDS.sbpLow ? "var(--arterial)" : b.lo >= THRESHOLDS.sbpHigh ? "#e0b970" : "var(--dialysate)"
+  })), { xlabel:"post-dialysis systolic mmHg", height:190 });
+  const s = stats(sbp);
+  $("#hint-bp").textContent = s.n
+    ? "recorded in " + fmt(pct(s.n, f.length),0) + "% of sessions · median " + fmt(s.median,0) +
+      " · " + fmt(f.filter(r => r.flags.includes("hypo")).length) + " under 90 · " +
+      fmt(f.filter(r => r.flags.includes("hyper")).length) + " over 180"
+    : "not recorded in this selection";
+}
+
+/* ---- sortable table helper ---- */
+function renderTable(el, cols, rows, sortState, onSort, onRowClick){
+  const head = '<thead><tr>' + cols.map(c =>
+    '<th data-key="' + c.key + '"' + (sortState.key === c.key ? ' data-sorted="' + sortState.dir + '"' : "") +
+    (c.title ? ' title="' + esc(c.title) + '"' : "") + '>' + esc(c.label) + '</th>').join("") + '</tr></thead>';
+  const body = '<tbody>' + rows.map((r, i) =>
+    '<tr' + (onRowClick ? ' class="clickable" data-i="' + i + '"' : "") + '>' +
+    cols.map(c => '<td class="' + (c.cls || "") + '">' + c.cell(r) + '</td>').join("") + '</tr>').join("") + '</tbody>';
+  el.innerHTML = head + body;
+  el.querySelectorAll("th").forEach(th => th.addEventListener("click", () => onSort(th.dataset.key)));
+  if (onRowClick) el.querySelectorAll("tbody tr").forEach(tr => tr.addEventListener("click", () => onRowClick(rows[+tr.dataset.i])));
+}
+
+function sortRows(rows, key, dir, accessors){
+  const acc = accessors[key] || (r => r[key]);
+  const s = [...rows].sort((a,b) => {
+    const x = acc(a), y = acc(b);
+    const xn = x == null, yn = y == null;
+    if (xn && yn) return 0;
+    if (xn) return 1;
+    if (yn) return -1;
+    if (typeof x === "string" || typeof y === "string") return String(x).localeCompare(String(y));
+    return x - y;
+  });
+  return dir === "desc" ? s.reverse() : s;
+}
+
+function renderPatients(){
+  const acc = {
+    name: p => p.name.toLowerCase(), sessions: p => p.sessions, meanKtv: p => p.meanKtv,
+    pctOnTarget: p => p.pctOnTarget, meanMins: p => p.meanMins, meanQb: p => p.meanQb,
+    meanUf: p => p.meanUf, meanBv: p => p.meanBv, lastWhen: p => p.lastWhen ? +p.lastWhen : null,
+    flagCount: p => p.flagCount, modalities: p => p.modalities.join(",")
+  };
+  const rows = sortRows(STATE.patients, STATE.sortPatients.key, STATE.sortPatients.dir, acc);
+  const cols = [
+    { key:"name", label:"Patient", cls:"name", cell:p => esc(dispName(p.name)) },
+    { key:"sessions", label:"Sess.", cell:p => fmt(p.sessions) },
+    { key:"modalities", label:"Modality", cell:p => p.modalities.map(m => '<span class="flag ' +
+        (m === "HDF" ? "f-violet" : m === "HD" ? "f-teal" : "f-amber") + '">' + esc(m) + '</span>').join("") },
+    { key:"meanKtv", label:"Mean Kt/V", cell:p => p.meanKtv == null ? "—" :
+        '<span style="color:' + (p.meanKtv < THRESHOLDS.ktvMin ? "var(--arterial)" : "inherit") + '">' + fmt(p.meanKtv,2) + '</span>' },
+    { key:"pctOnTarget", label:"% ≥ 1.2", title:"share of measured sessions at or above Kt/V 1.2",
+      cls:"bar-cell", cell:p => p.pctOnTarget == null ? "—" :
+        fmt(p.pctOnTarget,0) + '%<i><b style="width:' + p.pctOnTarget.toFixed(0) + '%;background:' +
+        (p.pctOnTarget >= 85 ? "var(--dialysate)" : p.pctOnTarget >= 60 ? "var(--amber)" : "var(--arterial)") + '"></b></i>' },
+    { key:"meanMins", label:"Mean time", cell:p => fmtMins(p.meanMins) },
+    { key:"meanQb", label:"Qb ml/min", cell:p => fmt(p.meanQb,0) },
+    { key:"meanUf", label:"UF ml/h", cell:p => fmt(p.meanUf,0) },
+    { key:"meanBv", label:"Blood vol. L", cell:p => fmt(p.meanBv,1) },
+    { key:"lastWhen", label:"Last session", cell:p => esc(fmtDT(p.lastWhen)) },
+    { key:"flagCount", label:"Flags", cell:p => p.flagCount ? '<span class="flag f-amber">' + p.flagCount + '</span>' : "—" }
+  ];
+  renderTable($("#t-patients"), cols, rows, STATE.sortPatients, key => {
+    const s = STATE.sortPatients;
+    s.dir = s.key === key && s.dir === "desc" ? "asc" : "desc";
+    s.key = key; renderPatients();
+  }, openPatient);
+}
+
+function flaggedSessions(){
+  return STATE.filtered.filter(r => STATE.flagFilter ? r.flags.includes(STATE.flagFilter) : r.flags.length > 0);
+}
+
+function renderFlags(){
+  const f = STATE.filtered;
+  const counts = FLAG_DEFS.map(d => ({ ...d, n: f.filter(r => r.flags.includes(d.id)).length }));
+  const top = counts.filter(c => c.id !== "noktv" && c.id !== "nopresc").sort((a,b) => b.n - a.n).slice(0,4);
+  $("#flag-kpis").innerHTML = top.map(c => kpiCard({
+    label: c.label, value: fmt(c.n),
+    sub: fmt(pct(c.n, f.length),1) + "% of " + fmt(f.length) + " sessions",
+    bar: pct(c.n, f.length),
+    tone: c.tone === "f-red" ? "bad" : "warn"
+  })).join("");
+  $$("#f-flagtype .chip").forEach(ch => {
+    ch.setAttribute("aria-pressed", String(ch.dataset.flag === STATE.flagFilter));
+    const d = FLAG_DEFS.find(x => x.id === ch.dataset.flag);
+    if (d) ch.textContent = d.label + " · " + (counts.find(c => c.id === d.id).n);
+  });
+  const rows = sortRows(flaggedSessions(), STATE.sortFlags.key, STATE.sortFlags.dir, {
+    when: r => r.when ? +r.when : null, name: r => r.name.toLowerCase(),
+    ktv: r => r.ktv, mins: r => r.mins, uf: r => r.uf, qb: r => r.qb, sbp: r => r.sbp,
+    flags: r => r.flags.length
+  }).slice(0, 800);
+  $("#hint-flags").textContent = fmt(flaggedSessions().length) + " flagged" + (flaggedSessions().length > 800 ? " · showing first 800" : "");
+  const cols = [
+    { key:"name", label:"Patient", cls:"name", cell:r => esc(dispName(r.name)) },
+    { key:"when", label:"Session", cell:r => esc(fmtDT(r.when)) },
+    { key:"device", label:"Machine", cell:r => esc(r.device) },
+    { key:"mins", label:"Time", cell:r => fmtMins(r.mins) },
+    { key:"ktv", label:"Kt/V", cell:r => fmt(r.ktv,2) },
+    { key:"qb", label:"Qb", cell:r => fmt(r.qb,0) },
+    { key:"uf", label:"UF", cell:r => fmt(r.uf,0) },
+    { key:"sbp", label:"Post BP", cell:r => r.sbp == null ? "—" : fmt(r.sbp,0) + "/" + fmt(r.dbp,0) },
+    { key:"flags", label:"Flags", cell:r => r.flags.map(id => {
+        const d = FLAG_DEFS.find(x => x.id === id);
+        return '<span class="flag ' + d.tone + '">' + esc(d.label) + '</span>';
+      }).join("") }
+  ];
+  renderTable($("#t-flags"), cols, rows, STATE.sortFlags, key => {
+    const s = STATE.sortFlags;
+    s.dir = s.key === key && s.dir === "desc" ? "asc" : "desc";
+    s.key = key; renderFlags();
+  }, r => openPatient(STATE.patients.find(p => p.name === r.name)));
+}
+
+function renderQuality(){
+  const f = STATE.filtered;
+  const fills = fillRates(f, STATE.header, STATE.col);
+  $("#c-fill").innerHTML = hbarChart(fills.map(x => ({
+    label: x.label, n: Math.round(x.pct), suffix:"%",
+    color: x.pct >= 95 ? "var(--dialysate)" : x.pct >= 60 ? "var(--amber)" : "var(--arterial)"
+  })), { labelWidth:150 });
+  const presc = [...countBy(f, r => r.prescRaw || "(blank)")].sort((a,b) => b[1] - a[1]);
+  $("#t-presc").innerHTML = '<thead><tr><th style="cursor:default">As typed</th><th style="cursor:default">Reads as</th><th style="cursor:default">Sessions</th></tr></thead><tbody>' +
+    presc.map(([raw, n]) => {
+      const c = classifyPrescription(raw);
+      const tone = c.modality === "HDF" ? "f-violet" : c.modality === "HD" ? "f-teal" : "f-amber";
+      return '<tr><td class="name">' + esc(raw) + '</td><td><span class="flag ' + tone + '">' + esc(c.modality) +
+        '</span>' + c.additives.map(a => '<span class="flag f-blue">' + esc(a) + '</span>').join("") +
+        (c.looksLikeName ? '<span class="flag f-red">looks like a person</span>' : "") + '</td><td>' + fmt(n) + '</td></tr>';
+    }).join("") + '</tbody>';
+  const nv = nameVariants(f);
+  $("#t-namevar").innerHTML = '<thead><tr><th style="cursor:default">Patient</th><th style="cursor:default">Entered as</th><th style="cursor:default">Sessions</th></tr></thead><tbody>' +
+    (nv.length ? nv.map(e =>
+      '<tr><td class="name">' + esc(dispName(e.name)) + '</td><td style="text-align:left;white-space:normal">' +
+      [...e.raws.entries()].map(([raw,n]) => '<span class="flag f-blue">' + esc(raw) + ' ×' + n + '</span>').join(" ") +
+      '</td><td>' + fmt(e.n) + '</td></tr>').join("")
+      : '<tr><td colspan="3" style="text-align:left;color:var(--ink-2)">No inconsistent name entries in this selection.</td></tr>') +
+    '</tbody>';
+}
+
+/* ---- patient drawer ---- */
+function openPatient(p){
+  if (!p) return;
+  $("#drawer-title").textContent = dispName(p.name);
+  $("#drawer-sub").textContent = p.sessions + " sessions · " + p.devices.join(", ") + " · " + p.modalities.join(", ") +
+    " · " + fmtDate(p.firstWhen) + " – " + fmtDate(p.lastWhen);
+  $("#drawer-stats").innerHTML = [
+    ["Mean Kt/V", p.meanKtv == null ? "—" : fmt(p.meanKtv,2)],
+    ["% ≥ 1.2", p.pctOnTarget == null ? "—" : fmt(p.pctOnTarget,0) + "%"],
+    ["Mean time", fmtMins(p.meanMins)],
+    ["Mean Qb", fmt(p.meanQb,0) + " ml/min"],
+    ["Mean UF", fmt(p.meanUf,0) + " ml/h"],
+    ["Blood vol.", fmt(p.meanBv,1) + " L"],
+    ["Flags", fmt(p.flagCount)]
+  ].map(([k,v]) => '<div><span class="eyebrow">' + esc(k) + '</span><span class="v">' + esc(v) + '</span></div>').join("");
+  const rows = [...p.rows].sort((a,b) => (b.when ? +b.when : 0) - (a.when ? +a.when : 0));
+  $("#t-sessions").innerHTML =
+    '<thead><tr>' + ["Session","Machine","Prescription","Time","Kt/V","Kt L","Qb","UF","Blood vol.","Post BP","HR","Flags"]
+      .map(h => '<th style="cursor:default">' + h + '</th>').join("") + '</tr></thead><tbody>' +
+    rows.map(r => '<tr>' + [
+      esc(fmtDT(r.when)), esc(r.device), '<span style="font-family:var(--f-body)">' + esc(r.prescRaw || "—") + '</span>',
+      fmtMins(r.mins), fmt(r.ktv,2), fmt(r.kt,1), fmt(r.qb,0), fmt(r.uf,0), fmt(r.bv,1),
+      r.sbp == null ? "—" : fmt(r.sbp,0) + "/" + fmt(r.dbp,0), fmt(r.hr,0),
+      r.flags.map(id => { const d = FLAG_DEFS.find(x => x.id === id); return '<span class="flag ' + d.tone + '">' + esc(d.label) + '</span>'; }).join("")
+    ].map((c,i) => '<td class="' + (i === 0 ? "name" : "") + '">' + c + '</td>').join("") + '</tr>').join("") +
+    '</tbody>';
+  $("#drawer").classList.add("open"); $("#drawer-bg").classList.add("open");
+  $("#drawer").focus();
+}
+function closeDrawer(){ $("#drawer").classList.remove("open"); $("#drawer-bg").classList.remove("open"); }
+
+/* ---- export ---- */
+function exportCSV(){
+  const isPatients = STATE.view === "patients";
+  let head, lines, fname;
+  if (isPatients){
+    head = ["Patient","Sessions","Modalities","Machines","Mean Kt/V","% >=1.2","Mean minutes","Mean Qb","Mean UF","Mean blood volume L","First session","Last session","Flags"];
+    lines = STATE.patients.map(p => [dispName(p.name), p.sessions, p.modalities.join("/"), p.devices.join("/"),
+      p.meanKtv == null ? "" : p.meanKtv.toFixed(2), p.pctOnTarget == null ? "" : p.pctOnTarget.toFixed(1),
+      p.meanMins == null ? "" : Math.round(p.meanMins), p.meanQb == null ? "" : Math.round(p.meanQb),
+      p.meanUf == null ? "" : Math.round(p.meanUf), p.meanBv == null ? "" : p.meanBv.toFixed(1),
+      p.firstWhen ? p.firstWhen.toISOString() : "", p.lastWhen ? p.lastWhen.toISOString() : "", p.flagCount]);
+    fname = "tdms-patient-summary";
+  } else {
+    const src = STATE.view === "flags" ? flaggedSessions() : STATE.filtered;
+    head = ["Patient","Session","Machine","Prescription","Modality","Shift","Minutes","Kt/V","Kt L","Qb","UF","Blood volume L","Conductivity","Dialysate flow","TMP","Post SBP","Post DBP","Post HR","Post weight","Flags"];
+    lines = src.map(r => [dispName(r.name), r.when ? r.when.toISOString() : "", r.device, r.prescRaw, r.modality, r.shift,
+      r.mins ?? "", r.ktv ?? "", r.kt ?? "", r.qb ?? "", r.uf ?? "", r.bv ?? "", r.cond ?? "", r.dflow ?? "",
+      r.tmp ?? "", r.sbp ?? "", r.dbp ?? "", r.hr ?? "", r.weight ?? "",
+      r.flags.map(id => FLAG_DEFS.find(x => x.id === id).label).join("; ")]);
+    fname = STATE.view === "flags" ? "tdms-review-queue" : "tdms-sessions";
+  }
+  const q = v => { const s = String(v == null ? "" : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+  const csv = [head, ...lines].map(r => r.map(q).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type:"text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fname + "_" + (STATE.filters.from || "all") + "_to_" + (STATE.filters.to || "all") + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+/* ---- events ---- */
+$("#btn-reload").addEventListener("click", () => loadSheet(false));
+$("#auto-refresh").addEventListener("change", e => {
+  STATE.auto = e.target.checked;
+  scheduleRefresh();
+  if (STATE.auto) loadSheet(true);
+  else setStatus("Ready", "auto-refresh off · last read " +
+    (STATE.lastRead ? STATE.lastRead.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : "—"), "ready");
+});
+$("#file-in").addEventListener("change", ev => {
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    STATE.auto = false; $("#auto-refresh").checked = false; clearInterval(refreshTimer);
+    try { ingest(String(fr.result), file.name); } catch(e){ showGateError(e); }
+  };
+  fr.onerror = () => showGateError(new Error("Could not read " + file.name));
+  fr.readAsText(file);
+});
+$("#f-from").addEventListener("change", e => { STATE.filters.from = e.target.value; render(); });
+$("#f-to").addEventListener("change", e => { STATE.filters.to = e.target.value; render(); });
+$("#f-device").addEventListener("change", e => { STATE.filters.device = e.target.value; render(); });
+$("#f-modality").addEventListener("change", e => { STATE.filters.modality = e.target.value; render(); });
+$("#f-mask").addEventListener("change", e => { STATE.mask = e.target.checked; render(); });
+let searchT;
+$("#f-search").addEventListener("input", e => {
+  clearTimeout(searchT);
+  searchT = setTimeout(() => { STATE.filters.search = e.target.value.trim(); render(); }, 180);
+});
+$("#f-shift").addEventListener("click", ev => {
+  const b = ev.target.closest(".chip"); if (!b) return;
+  const s = b.dataset.shift, on = b.getAttribute("aria-pressed") === "true";
+  b.setAttribute("aria-pressed", String(!on));
+  STATE.filters.shifts = on ? STATE.filters.shifts.filter(x => x !== s) : [...STATE.filters.shifts, s];
+  render();
+});
+$("#f-flagtype").addEventListener("click", ev => {
+  const b = ev.target.closest(".chip"); if (!b) return;
+  STATE.flagFilter = b.dataset.flag; renderFlags();
+});
+$("#btn-reset").addEventListener("click", () => {
+  STATE.filters = { from:STATE.bounds.min, to:STATE.bounds.max, device:"", modality:"", shifts:[], search:"" };
+  STATE.flagFilter = "";
+  $("#f-from").value = STATE.bounds.min; $("#f-to").value = STATE.bounds.max;
+  $("#f-device").value = ""; $("#f-modality").value = ""; $("#f-search").value = "";
+  $$("#f-shift .chip").forEach(c => c.setAttribute("aria-pressed","false"));
+  render();
+});
+$("#btn-export").addEventListener("click", exportCSV);
+$$(".tab").forEach(t => t.addEventListener("click", () => {
+  STATE.view = t.dataset.view;
+  $$(".tab").forEach(x => x.setAttribute("aria-selected", String(x === t)));
+  $$("section[data-view]").forEach(s => { s.hidden = s.dataset.view !== STATE.view; });
+}));
+$("#drawer-close").addEventListener("click", closeDrawer);
+$("#drawer-bg").addEventListener("click", closeDrawer);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+
+loadSheet(false);
+</script>
+</body>
+</html>
