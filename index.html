@@ -917,23 +917,39 @@ function svg(inner, w, h){
   return '<svg class="chart" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet" role="img">' + inner + '</svg>';
 }
 
+// Rounds the axis up to a clean number with ~12% headroom, so every bar has
+// room for its value label above it and the gridlines read as whole counts.
+function niceScale(rawMax, headroom){
+  if (rawMax <= 6) return { max: Math.max(1, rawMax + 1), step: 1 };
+  const target = rawMax * (headroom || 1.12) / 5;
+  const exp = Math.pow(10, Math.floor(Math.log10(target)));
+  for (const m of [1,1.2,1.5,2,2.5,3,3.5,4,4.5,5,6,7,8,9,10]){
+    const step = m * exp;
+    if (step >= target && Math.abs(step - Math.round(step)) < 1e-9) return { max: step * 5, step };
+  }
+  const step = Math.ceil(target);
+  return { max: step * 5, step };
+}
+
 function barChart(items, opts){
   opts = opts || {};
   const w = 520, h = opts.height || 190;
-  const pl = 44, pr = 14, pt = 14, pb = 34;
+  const pl = 44, pr = 14, pt = 16, pb = 34;
   const iw = w - pl - pr, ih = h - pt - pb;
-  const max = Math.max(1, ...items.map(d => d.n));
+  const sc = niceScale(Math.max(0, ...items.map(d => d.n)));
+  const max = sc.max, ticks = Math.max(1, Math.round(max / sc.step));
   const bw = iw / Math.max(1, items.length);
   let s = "";
-  for (let g = 0; g <= 4; g++){
-    const y = pt + ih - (ih * g / 4);
+  for (let g = 0; g <= ticks; g++){
+    const y = pt + ih - (ih * g / ticks);
     s += '<line class="gridline" x1="' + pl + '" y1="' + y + '" x2="' + (w - pr) + '" y2="' + y + '"/>';
-    s += '<text class="ax" x="' + (pl - 7) + '" y="' + (y + 3.2) + '" text-anchor="end">' + fmt(max * g / 4) + '</text>';
+    s += '<text class="ax" x="' + (pl - 7) + '" y="' + (y + 3.2) + '" text-anchor="end">' + fmt(sc.step * g) + '</text>';
   }
   if (opts.setpoint != null && opts.spX != null){
     const x = pl + opts.spX * iw;
     s += '<line class="setpoint" x1="' + x + '" y1="' + pt + '" x2="' + x + '" y2="' + (pt + ih) + '"/>';
-    s += '<text class="setpoint-lbl" x="' + (x + 4) + '" y="' + (pt + 10) + '">' + esc(opts.setpointLabel || "") + '</text>';
+    s += '<text class="setpoint-lbl" x="' + (x + 4) + '" y="' + (pt - 4) + '" stroke="#fff" stroke-width="3" paint-order="stroke">' +
+         esc(opts.setpointLabel || "") + '</text>';
   }
   items.forEach((d, i) => {
     const bh = ih * d.n / max;
@@ -941,10 +957,9 @@ function barChart(items, opts){
     s += '<rect x="' + x.toFixed(1) + '" y="' + (pt + ih - bh).toFixed(1) + '" width="' + ww.toFixed(1) + '" height="' + Math.max(0, bh).toFixed(1) +
          '" fill="' + (d.color || "var(--venous)") + '" rx="1"><title>' + esc(d.label) + ' · ' + fmt(d.n) + '</title></rect>';
     if (opts.labels && d.n > 0){
-      const top = pt + ih - bh, inside = top < pt + 13;
-      s += '<text x="' + (x + ww/2).toFixed(1) + '" y="' + (inside ? top + 11 : top - 4).toFixed(1) +
-           '" text-anchor="middle" style="font-family:var(--f-num);font-size:' + (bw < 26 ? 8 : 9.5) + 'px;fill:' +
-           (inside ? "#fff" : "var(--ink-2)") + '">' + fmt(d.n) + '</text>';
+      s += '<text x="' + (x + ww/2).toFixed(1) + '" y="' + (pt + ih - bh - 4).toFixed(1) +
+           '" text-anchor="middle" style="font-family:var(--f-num);font-size:' + (bw < 26 ? 8 : 9.5) +
+           'px;fill:var(--ink-2)">' + fmt(d.n) + '</text>';
     }
     if (items.length <= 16 || i % Math.ceil(items.length / 12) === 0){
       s += '<text class="ax" x="' + (pl + i * bw + bw / 2).toFixed(1) + '" y="' + (pt + ih + 13) + '" text-anchor="middle">' + esc(d.short || d.label) + '</text>';
@@ -957,7 +972,9 @@ function barChart(items, opts){
 function hbarChart(items, opts){
   opts = opts || {};
   const rowH = 26, w = 520, h = items.length * rowH + 16;
-  const pl = opts.labelWidth || 108, pr = 52;
+  const pl = opts.labelWidth || 108;
+  const widest = Math.max(3, ...items.map(d => (fmt(d.n) + (d.suffix || "")).length));
+  const pr = opts.labels === false ? 14 : 14 + widest * 6.6;   // the value never runs off the edge
   const iw = w - pl - pr;
   const max = Math.max(1, ...items.map(d => d.n));
   let s = "";
@@ -1000,7 +1017,7 @@ function donutChart(items, opts){
 
 function scatterChart(pts, opts){
   opts = opts || {};
-  const w = 520, h = 260, pl = 46, pr = 16, pt = 16, pb = 38;
+  const w = 520, h = 260, pl = 46, pr = 16, pt = 20, pb = 38;
   const iw = w - pl - pr, ih = h - pt - pb;
   const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
   const xmax = opts.xmax != null ? opts.xmax : Math.max(1, ...xs);
@@ -1019,12 +1036,14 @@ function scatterChart(pts, opts){
   if (opts.hline != null){
     const y = Y(opts.hline);
     s += '<line class="setpoint" x1="' + pl + '" y1="' + y + '" x2="' + (w-pr) + '" y2="' + y + '"/>';
-    s += '<text class="setpoint-lbl" x="' + (w - pr - 2) + '" y="' + (y - 5) + '" text-anchor="end">' + esc(opts.hlineLabel || "") + '</text>';
+    s += '<text class="setpoint-lbl" x="' + (w - pr - 2) + '" y="' + (y - 5) + '" text-anchor="end" stroke="#fff" stroke-width="3" paint-order="stroke">' +
+         esc(opts.hlineLabel || "") + '</text>';
   }
   if (opts.vline != null){
     const x = X(opts.vline);
     s += '<line class="setpoint" x1="' + x + '" y1="' + pt + '" x2="' + x + '" y2="' + (pt+ih) + '"/>';
-    s += '<text class="setpoint-lbl" x="' + (x + 4) + '" y="' + (pt + 10) + '">' + esc(opts.vlineLabel || "") + '</text>';
+    s += '<text class="setpoint-lbl" x="' + (x + 4) + '" y="' + (pt - 4) + '" stroke="#fff" stroke-width="3" paint-order="stroke">' +
+         esc(opts.vlineLabel || "") + '</text>';
   }
   for (const p of pts){
     if (p.x == null || p.y == null || p.x > xmax || p.y > ymax) continue;
@@ -1036,22 +1055,25 @@ function scatterChart(pts, opts){
 }
 
 // Signature element: sessions-per-day trace with a Kt/V band underneath.
-function traceStrip(series){
-  const w = 1000, h = 196;
-  const pl = 40, pr = 16, pt = 16;
+function traceStrip(series, opts){
+  opts = opts || {};
+  const pt = opts.labels ? 27 : 16;          // room for the point labels
+  const w = 1000, h = 196 + (opts.labels ? 11 : 0);
+  const pl = 40, pr = 16;
   const traceH = 92, bandH = 16, bandGap = 12;
   const iw = w - pl - pr;
-  const max = Math.max(1, ...series.map(d => d.n));
+  const sc = niceScale(Math.max(0, ...series.map(d => d.n)), 1.06);
+  const max = sc.max, ticks = Math.max(1, Math.round(max / sc.step));
   const step = iw / Math.max(1, series.length);
   const X = i => pl + i * step + step / 2;
   const Y = n => pt + traceH - (n / max) * traceH;
   const mean = series.length ? series.reduce((a,b) => a + b.n, 0) / series.length : 0;
   const ktvColor = d => d.ktvN === 0 ? "var(--rule)" : d.meanKtv < 1.2 ? "#c2453a" : d.meanKtv < 1.4 ? "#e0b970" : "#0d8878";
   let s = "";
-  for (let g = 0; g <= 3; g++){
-    const y = pt + traceH - traceH * g / 3;
+  for (let g = 0; g <= ticks; g++){
+    const y = pt + traceH - traceH * g / ticks;
     s += '<line class="gridline" x1="' + pl + '" y1="' + y + '" x2="' + (w-pr) + '" y2="' + y + '"/>';
-    s += '<text class="ax" x="' + (pl-7) + '" y="' + (y+3.2) + '" text-anchor="end">' + fmt(max*g/3) + '</text>';
+    s += '<text class="ax" x="' + (pl-7) + '" y="' + (y+3.2) + '" text-anchor="end">' + fmt(sc.step * g) + '</text>';
   }
   // Sunday markers — the unit runs a lighter roster
   series.forEach((d,i) => {
@@ -1060,7 +1082,8 @@ function traceStrip(series){
   });
   const my = Y(mean);
   s += '<line class="setpoint" x1="' + pl + '" y1="' + my.toFixed(1) + '" x2="' + (w-pr) + '" y2="' + my.toFixed(1) + '"/>';
-  s += '<text class="setpoint-lbl" x="' + (w-pr-2) + '" y="' + (my-5).toFixed(1) + '" text-anchor="end">mean ' + fmt(mean,1) + '/day</text>';
+  s += '<text class="setpoint-lbl" x="' + (w-pr-2) + '" y="' + (my-5).toFixed(1) + '" text-anchor="end" stroke="#fff" stroke-width="3" paint-order="stroke">mean ' +
+       fmt(mean,1) + '/day</text>';
   if (series.length){
     let area = 'M' + X(0).toFixed(1) + ' ' + (pt+traceH);
     series.forEach((d,i) => { area += ' L' + X(i).toFixed(1) + ' ' + Y(d.n).toFixed(1); });
@@ -1073,6 +1096,15 @@ function traceStrip(series){
   series.forEach((d,i) => {
     s += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(d.n).toFixed(1) + '" r="2.6" fill="#fff" stroke="var(--dialysate)" stroke-width="1.4"/>';
   });
+  if (opts.labels){
+    const labelEvery = Math.max(1, Math.ceil(19 / step));
+    series.forEach((d,i) => {
+      if (d.n <= 0 || i % labelEvery !== 0) return;
+      s += '<text x="' + X(i).toFixed(1) + '" y="' + (Y(d.n) - 7).toFixed(1) +
+           '" text-anchor="middle" style="font-family:var(--f-num);font-size:8.5px;fill:var(--ink-2)" stroke="#fff" stroke-width="2.6" paint-order="stroke">' +
+           fmt(d.n) + '</text>';
+    });
+  }
   const by = pt + traceH + bandGap;
   s += '<text class="ax-lbl" x="' + (pl-7) + '" y="' + (by+11.5) + '" text-anchor="end" style="font-size:8.5px">Kt/V</text>';
   series.forEach((d,i) => {
@@ -1262,7 +1294,7 @@ function renderMast(){
 }
 
 function renderTrace(){
-  $("#trace-wrap").innerHTML = traceStrip(STATE.series);
+  $("#trace-wrap").innerHTML = traceStrip(STATE.series, { labels: STATE.dataLabels });
   const tip = $("#tip");
   $$("#trace-wrap .hot").forEach(el => {
     el.addEventListener("mousemove", ev => {
@@ -1355,12 +1387,12 @@ function renderAdequacy(){
   $("#c-qb").innerHTML = barChart(qh.bins.map(b => ({
     label: b.lo + "–" + b.hi, short: String(b.lo), n: b.n,
     color: b.hi <= THRESHOLDS.qbMin ? "var(--amber)" : "var(--venous)"
-  })), { xlabel:"effective blood flow ml/min", height:160, spX:(THRESHOLDS.qbMin - 60)/420, setpoint:1, setpointLabel:"250", labels:STATE.dataLabels });
+  })), { xlabel:"effective blood flow ml/min", height:186, spX:(THRESHOLDS.qbMin - 60)/420, setpoint:1, setpointLabel:"250", labels:STATE.dataLabels });
   const uh = histogram(f.map(r => r.uf).filter(v => v != null), 0, 1500, 125);
   $("#c-uf").innerHTML = barChart(uh.bins.map(b => ({
     label: b.lo + "–" + b.hi, short: String(b.lo), n: b.n,
     color: b.lo >= THRESHOLDS.ufMax ? "#e0b970" : "var(--venous)"
-  })), { xlabel:"mean UF rate ml/h", height:160, spX:THRESHOLDS.ufMax/1500, setpoint:1, setpointLabel:String(THRESHOLDS.ufMax), labels:STATE.dataLabels });
+  })), { xlabel:"mean UF rate ml/h", height:186, spX:THRESHOLDS.ufMax/1500, setpoint:1, setpointLabel:String(THRESHOLDS.ufMax), labels:STATE.dataLabels });
 }
 
 function renderScatter(){
