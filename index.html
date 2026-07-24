@@ -293,6 +293,7 @@ td .flag{
   <nav class="mast-tabs" role="tablist" aria-label="Views">
     <button class="tab" role="tab" data-view="overview" aria-selected="true">Overview</button>
     <button class="tab" role="tab" data-view="patients" aria-selected="false">Patients</button>
+    <button class="tab" role="tab" data-view="outliers" aria-selected="false">Standings</button>
     <button class="tab" role="tab" data-view="flags" aria-selected="false">Review queue</button>
     <button class="tab" role="tab" data-view="quality" aria-selected="false">Data quality</button>
   </nav>
@@ -433,6 +434,73 @@ td .flag{
       </div>
     </section>
 
+    <!-- ============ STANDINGS ============ -->
+    <section data-view="outliers" hidden>
+      <div class="section-rule"><h2>Adequacy standing</h2><span class="n" id="rule-standing"></span></div>
+      <div class="panel" style="margin-top:14px">
+        <div class="panel-hd">
+          <h2>How the score is built</h2>
+          <span class="hint">Kt/V on target 45% · time on treatment 25% · blood flow 15% · freedom from adverse events 15%</span>
+        </div>
+        <div class="panel-bd" style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
+          <div class="fg">
+            <label for="o-min">Minimum sessions to rank</label>
+            <select id="o-min">
+              <option value="1">1 — include everyone</option>
+              <option value="4" selected>4</option>
+              <option value="8">8</option>
+              <option value="12">12</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label for="o-n">List length</label>
+            <select id="o-n"><option>5</option><option selected>10</option><option>15</option><option>25</option></select>
+          </div>
+          <p class="note" style="max-width:460px;margin:0">
+            A patient with two sessions in the period can top or bottom any list on noise alone, so the
+            minimum keeps short histories out of the ranking. Excluded patients are counted below.
+          </p>
+        </div>
+      </div>
+
+      <div class="grid g-2" style="margin-top:16px">
+        <div class="panel">
+          <div class="panel-hd"><h2>Meeting targets most consistently</h2><span class="hint" id="hint-best"></span></div>
+          <div class="tbl-scroll" style="max-height:none"><table id="t-best"></table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><h2>Furthest below targets</h2><span class="hint" id="hint-worst"></span></div>
+          <div class="tbl-scroll" style="max-height:none"><table id="t-worst"></table></div>
+        </div>
+      </div>
+
+      <div class="section-rule"><h2>Single parameter</h2><span class="n" id="rule-metric"></span></div>
+      <div class="panel" style="margin-top:14px">
+        <div class="panel-bd" style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
+          <div class="fg"><label for="o-metric">Rank patients by</label><select id="o-metric"></select></div>
+          <p class="note" style="max-width:520px;margin:0" id="o-metric-note"></p>
+        </div>
+      </div>
+      <div class="grid g-2" style="margin-top:16px">
+        <div class="panel">
+          <div class="panel-hd"><h2 id="hd-high">Highest</h2><span class="hint" id="hint-high"></span></div>
+          <div class="tbl-scroll" style="max-height:none"><table id="t-high"></table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-hd"><h2 id="hd-low">Lowest</h2><span class="hint" id="hint-low"></span></div>
+          <div class="tbl-scroll" style="max-height:none"><table id="t-low"></table></div>
+        </div>
+      </div>
+
+      <p class="threshold-note">
+        The score is a triage aid for picking the next chart to open, not a clinical assessment and not a
+        comparison between patients. It combines four delivery measures the unit controls, so a low score
+        usually points at prescription, vascular access or dialyser choice rather than at the patient.
+        Body size, residual function and comorbidity all move Kt/V independently of how well a session ran,
+        and every row here needs reading against the patient's own prescription before anything changes.
+      </p>
+    </section>
+
     <!-- ============ FLAGS ============ -->
     <section data-view="flags" hidden>
       <div class="grid g-kpi" id="flag-kpis" style="margin-top:16px"></div>
@@ -513,7 +581,8 @@ const THRESHOLDS = {
   ktvMin: 1.2,        // single-pool Kt/V per session
   timeMinTarget: 240, // minutes
   timeAborted: 60,    // minutes — session ended very early
-  qbMin: 250,         // ml/min
+  qbMin: 250,         // ml/min — flag below this
+  qbTarget: 300,      // ml/min — full marks at or above this
   ufMax: 1000,        // ml/h
   sbpLow: 90,         // mmHg post-dialysis
   sbpHigh: 180
@@ -742,6 +811,10 @@ const FLAG_DEFS = [
   { id:"nopresc",   label:"Prescription unclear", tone:"f-violet", test: r => r.modality === "Unspecified" }
 ];
 
+// Things that went wrong *during* a session, as opposed to the dose being small.
+// Kept separate from the adequacy flags so the score doesn't count short sessions twice.
+const ADVERSE_FLAGS = ["aborted","hypo","hyper","highuf"];
+
 function flagsFor(rec){
   const out = [];
   for (const f of FLAG_DEFS) if (f.test(rec)) out.push(f.id);
@@ -840,6 +913,8 @@ function patientSummary(records){
     const ktvs = rs.map(r => r.ktv).filter(v => v != null);
     const onTarget = ktvs.filter(v => v >= THRESHOLDS.ktvMin).length;
     const mins = rs.map(r => r.mins).filter(v => v != null);
+    const clinical = r => r.flags.filter(f => f !== "noktv" && f !== "nopresc").length;
+    const adverse = r => r.flags.some(f => ADVERSE_FLAGS.includes(f));
     const dates = rs.map(r => r.when).filter(Boolean).sort((a,b) => a - b);
     const devices = [...new Set(rs.map(r => r.device))];
     const mods = [...new Set(rs.map(r => r.modality))];
@@ -849,6 +924,10 @@ function patientSummary(records){
       ktvN: ktvs.length,
       pctOnTarget: ktvs.length ? pct(onTarget, ktvs.length) : null,
       meanMins: mins.length ? mins.reduce((a,b) => a+b,0)/mins.length : null,
+      pctFullTime: mins.length ? pct(mins.filter(v => v >= THRESHOLDS.timeMinTarget).length, mins.length) : null,
+      pctFlagged: pct(rs.filter(r => clinical(r) > 0).length, rs.length),
+      pctAdverse: pct(rs.filter(adverse).length, rs.length),
+      timeN: mins.length,
       meanQb: stats(rs.map(r => r.qb)).mean,
       meanUf: stats(rs.map(r => r.uf)).mean,
       meanBv: stats(rs.map(r => r.bv)).mean,
@@ -859,6 +938,23 @@ function patientSummary(records){
     });
   }
   return out.sort((a,b) => b.sessions - a.sessions);
+}
+
+// Weighted from four delivery measures the unit controls. Missing components are
+// dropped and the remaining weights renormalised, so a patient is never penalised
+// for a field nobody recorded.
+const SCORE_PARTS = [
+  { key:"ktv",    label:"Kt/V",   weight:.45, of: p => p.pctOnTarget },
+  { key:"time",   label:"Time",   weight:.25, of: p => p.pctFullTime },
+  { key:"qb",     label:"Qb",     weight:.15, of: p => p.meanQb == null ? null : Math.min(100, (p.meanQb / THRESHOLDS.qbTarget) * 100) },
+  { key:"safety", label:"Safety", weight:.15, of: p => Math.max(0, 100 - p.pctAdverse) }
+];
+
+function adequacyScore(p){
+  const parts = SCORE_PARTS.map(sp => ({ ...sp, value: sp.of(p) })).filter(sp => sp.value != null);
+  const wsum = parts.reduce((a,b) => a + b.weight, 0);
+  if (!wsum) return { score:null, parts:[] };
+  return { score: parts.reduce((a,b) => a + b.weight * b.value, 0) / wsum, parts };
 }
 
 function fillRates(records, header, col){
@@ -1133,6 +1229,29 @@ function traceStrip(series, opts){
   return svg(s, w, h);
 }
 
+const METRICS = [
+  { key:"pctOnTarget",  label:"Kt/V on target",        good:"high", show:p => p.pctOnTarget == null ? "—" : fmt(p.pctOnTarget,0) + "%", needs:p => p.ktvN > 0,
+    note:"Share of the patient's measured sessions reaching Kt/V " + 1.2 + ". Patients with no Kt/V recorded are left out." },
+  { key:"meanKtv",      label:"Mean Kt/V",             good:"high", show:p => fmt(p.meanKtv,2), needs:p => p.ktvN > 0,
+    note:"Averaged across measured sessions only. A single very short session can pull this down sharply." },
+  { key:"pctFullTime",  label:"Sessions reaching 4 h", good:"high", show:p => p.pctFullTime == null ? "—" : fmt(p.pctFullTime,0) + "%", needs:p => p.timeN > 0,
+    note:"Share of sessions running " + 240 + " minutes or longer. Short prescriptions and early terminations both land here." },
+  { key:"meanMins",     label:"Mean time on treatment",good:"high", show:p => fmtMins(p.meanMins), needs:p => p.timeN > 0,
+    note:"Mean effective time on treatment, including sessions that ended early." },
+  { key:"meanQb",       label:"Mean blood flow",       good:"high", show:p => fmt(p.meanQb,0) + " ml/min", needs:p => p.meanQb != null,
+    note:"Persistently low blood flow usually points at the vascular access rather than the prescription." },
+  { key:"meanUf",       label:"Mean UF rate",          good:"low",  show:p => fmt(p.meanUf,0) + " ml/h", needs:p => p.meanUf != null,
+    note:"High ultrafiltration rates are associated with intradialytic hypotension. Read alongside post-dialysis BP." },
+  { key:"pctAdverse",   label:"Sessions with an adverse event", good:"low", show:p => fmt(p.pctAdverse,0) + "%", needs:p => true,
+    note:"Share of sessions that ended early, ran a UF rate above " + THRESHOLDS.ufMax + " ml/h, or finished with a systolic outside 90–180. This is what feeds the safety part of the score — short-but-completed sessions are counted under time instead, so nothing is penalised twice." },
+  { key:"pctFlagged",   label:"Sessions with any flag", good:"low",  show:p => fmt(p.pctFlagged,0) + "%", needs:p => true,
+    note:"Every clinical flag, adequacy ones included. With the unit median at under four hours this sits high for most patients, which is why the score uses the narrower adverse-event rate instead." },
+  { key:"meanBv",       label:"Dialysed blood volume", good:"high", show:p => fmt(p.meanBv,1) + " L", needs:p => p.meanBv != null,
+    note:"Total blood volume processed per session — a check on blood flow and time together." },
+  { key:"sessions",     label:"Sessions delivered",    good:"high", show:p => fmt(p.sessions), needs:p => true,
+    note:"Attendance in the selected period. Low counts can mean missed sessions, hospitalisation, a transfer or a late start on the programme." }
+];
+
 /* ---------------------------------------------------------------------------
    STATE + WIRING
    ------------------------------------------------------------------------- */
@@ -1147,9 +1266,10 @@ const STATE = {
   sortPatients: { key:"sessions", dir:"desc" },
   sortFlags: { key:"when", dir:"desc" },
   flagFilter: "",
-  bounds: { min:"", max:"" },
+  bounds: { min:"", max:"" }, standings: [],
   auto: true, lastRead: null,
   dataLabels: true,
+  outlier: { metric:"pctOnTarget", min:4, n:10 },
   hiddenDevices: [],          // scatter-only series toggles
   drawer: { rows:[], name:"", showPatient:false }
 };
@@ -1277,7 +1397,7 @@ function render(){
   STATE.series   = dailySeries(STATE.filtered, STATE.filters.from || null, STATE.filters.to || null);
   STATE.patients = patientSummary(STATE.filtered);
   renderMast(); renderTrace(); renderKpis(); renderAdequacy(); renderMix();
-  renderPatients(); renderFlags(); renderQuality();
+  renderPatients(); renderStandings(); renderFlags(); renderQuality();
 }
 
 function renderMast(){
@@ -1523,6 +1643,90 @@ function renderPatients(){
   }, openPatient);
 }
 
+/* ---- standings ---- */
+function standingRow(x, cols){
+  return '<tr class="clickable" data-name="' + esc(x.p.name) + '">' + cols.map(c => '<td class="' + (c.cls || "") + '">' + c.cell(x) + '</td>').join("") + '</tr>';
+}
+
+function scoreColour(v){ return v >= 85 ? "var(--dialysate)" : v >= 70 ? "var(--amber)" : "var(--arterial)"; }
+
+function standingTable(el, rows, total){
+  const cols = [
+    { key:"rank",  label:"#",         cell:x => '<span style="color:var(--ink-3)">' + x.rank + (total ? "/" + total : "") + '</span>' },
+    { key:"name",  label:"Patient", cls:"name", cell:x => esc(dispName(x.p.name)) },
+    { key:"score", label:"Score", cls:"bar-cell", cell:x => fmt(x.score,0) +
+        '<i><b style="width:' + x.score.toFixed(0) + '%;background:' + scoreColour(x.score) + '"></b></i>' },
+    { key:"ktv",   label:"Kt/V ≥ 1.2", cell:x => x.p.pctOnTarget == null ? "—" : fmt(x.p.pctOnTarget,0) + "%" },
+    { key:"mktv",  label:"Mean Kt/V",  cell:x => fmt(x.p.meanKtv,2) },
+    { key:"time",  label:"≥ 4 h",      cell:x => x.p.pctFullTime == null ? "—" : fmt(x.p.pctFullTime,0) + "%" },
+    { key:"qb",    label:"Qb",         cell:x => fmt(x.p.meanQb,0) },
+    { key:"flag",  label:"Adverse",    cell:x => '<span title="ended early, UF over ' + THRESHOLDS.ufMax + ', or post systolic outside 90-180">' + fmt(x.p.pctAdverse,0) + '%</span>' },
+    { key:"sess",  label:"Sess.",      cell:x => fmt(x.p.sessions) }
+  ];
+  el.innerHTML = '<thead><tr>' + cols.map(c => '<th style="cursor:default">' + esc(c.label) + '</th>').join("") + '</tr></thead><tbody>' +
+    (rows.length ? rows.map(x => standingRow(x, cols)).join("")
+      : '<tr><td colspan="' + cols.length + '" style="text-align:left;color:var(--ink-2);padding:18px">Not enough sessions in this selection to rank anyone.</td></tr>') +
+    '</tbody>';
+  el.querySelectorAll("tbody tr.clickable").forEach(tr =>
+    tr.addEventListener("click", () => openPatient(STATE.patients.find(pp => pp.name === tr.dataset.name))));
+}
+
+function metricTable(el, rows, m){
+  const cols = [
+    { key:"rank", label:"#", cell:x => '<span style="color:var(--ink-3)">' + x.rank + '</span>' },
+    { key:"name", label:"Patient", cls:"name", cell:x => esc(dispName(x.p.name)) },
+    { key:"val",  label:m.label, cell:x => '<b style="font-weight:500">' + m.show(x.p) + '</b>' },
+    { key:"sess", label:"Sess.", cell:x => fmt(x.p.sessions) },
+    { key:"mktv", label:"Mean Kt/V", cell:x => fmt(x.p.meanKtv,2) },
+    { key:"time", label:"Mean time", cell:x => fmtMins(x.p.meanMins) }
+  ];
+  el.innerHTML = '<thead><tr>' + cols.map(c => '<th style="cursor:default">' + esc(c.label) + '</th>').join("") + '</tr></thead><tbody>' +
+    (rows.length ? rows.map(x => standingRow(x, cols)).join("")
+      : '<tr><td colspan="' + cols.length + '" style="text-align:left;color:var(--ink-2);padding:18px">No patient in this selection has this recorded.</td></tr>') +
+    '</tbody>';
+  el.querySelectorAll("tbody tr.clickable").forEach(tr =>
+    tr.addEventListener("click", () => openPatient(STATE.patients.find(pp => pp.name === tr.dataset.name))));
+}
+
+function renderStandings(){
+  const { min, n } = STATE.outlier;
+  if (!$("#o-metric").options.length)
+    $("#o-metric").innerHTML = METRICS.map(m => '<option value="' + m.key + '">' + esc(m.label) + '</option>').join("");
+  $("#o-metric").value = STATE.outlier.metric;
+  $("#o-min").value = String(min);
+  $("#o-n").value = String(n);
+
+  const eligible = STATE.patients.filter(p => p.sessions >= min);
+  const held = STATE.patients.length - eligible.length;
+  const scored = eligible.map(p => ({ p, ...adequacyScore(p) })).filter(x => x.score != null)
+    .sort((a,b) => b.score - a.score).map((x,i) => ({ ...x, rank:i+1 }));
+  STATE.standings = scored;
+
+  $("#rule-standing").textContent = fmt(scored.length) + " of " + fmt(STATE.patients.length) + " patients ranked" +
+    (held ? " · " + fmt(held) + " held back under " + min + " session" + (min === 1 ? "" : "s") : "");
+  const best = scored.slice(0, n), worst = scored.slice(-n).reverse().filter(x => !best.includes(x));
+  standingTable($("#t-best"), best, scored.length);
+  standingTable($("#t-worst"), worst, scored.length);
+  const sAll = stats(scored.map(x => x.score));
+  $("#hint-best").textContent = scored.length ? "top " + best.length + " · median score across the unit " + fmt(sAll.median,0) : "";
+  $("#hint-worst").textContent = worst.length ? "these are the charts to open first" : "";
+
+  const m = METRICS.find(x => x.key === STATE.outlier.metric) || METRICS[0];
+  const pool = eligible.filter(p => m.needs(p) && p[m.key] != null);
+  const sorted = [...pool].sort((a,b) => b[m.key] - a[m.key]).map((p,i) => ({ p, rank:i+1 }));
+  const high = sorted.slice(0, n);
+  const low  = sorted.slice(-n).reverse().filter(x => !high.includes(x));
+  $("#hd-high").textContent = "Highest " + m.label.toLowerCase();
+  $("#hd-low").textContent  = "Lowest " + m.label.toLowerCase();
+  const watch = ' · <span class="flag f-amber">the side to watch</span>';
+  $("#hint-high").innerHTML = (m.good === "low" ? "concerning end" + watch : "target end");
+  $("#hint-low").innerHTML  = (m.good === "high" ? "concerning end" + watch : "target end");
+  $("#o-metric-note").textContent = m.note;
+  $("#rule-metric").textContent = fmt(pool.length) + " patients have " + m.label.toLowerCase() + " recorded";
+  metricTable($("#t-high"), high, m);
+  metricTable($("#t-low"), low, m);
+}
+
 function flaggedSessions(){
   return STATE.filtered.filter(r => STATE.flagFilter ? r.flags.includes(STATE.flagFilter) : r.flags.length > 0);
 }
@@ -1722,8 +1926,17 @@ function closeDrawer(){ $("#drawer").classList.remove("open"); $("#drawer-bg").c
 
 /* ---- export ---- */
 function exportCSV(){
-  const isPatients = STATE.view === "patients";
   let head, lines, fname;   // eslint-disable-line
+  if (STATE.view === "outliers"){
+    head = ["Rank","Patient","Score","Kt/V on target %","Mean Kt/V","Sessions >=4h %","Mean minutes","Mean Qb","Mean UF","Adverse event %","Any flag %","Sessions"];
+    lines = (STATE.standings || []).map(x => [x.rank, dispName(x.p.name), x.score.toFixed(1),
+      x.p.pctOnTarget == null ? "" : x.p.pctOnTarget.toFixed(1), x.p.meanKtv == null ? "" : x.p.meanKtv.toFixed(2),
+      x.p.pctFullTime == null ? "" : x.p.pctFullTime.toFixed(1), x.p.meanMins == null ? "" : Math.round(x.p.meanMins),
+      x.p.meanQb == null ? "" : Math.round(x.p.meanQb), x.p.meanUf == null ? "" : Math.round(x.p.meanUf),
+      x.p.pctAdverse.toFixed(1), x.p.pctFlagged.toFixed(1), x.p.sessions]);
+    return downloadCSV("tdms-adequacy-standing", head, lines);
+  }
+  const isPatients = STATE.view === "patients";
   if (isPatients){
     head = ["Patient","Sessions","Modalities","Machines","Mean Kt/V","% >=1.2","Mean minutes","Mean Qb","Mean UF","Mean blood volume L","First session","Last session","Flags"];
     lines = STATE.patients.map(p => [dispName(p.name), p.sessions, p.modalities.join("/"), p.devices.join("/"),
@@ -1823,6 +2036,9 @@ $("#btn-reset").addEventListener("click", () => {
   render();
 });
 $("#btn-export").addEventListener("click", exportCSV);
+$("#o-min").addEventListener("change", e => { STATE.outlier.min = +e.target.value; renderStandings(); });
+$("#o-n").addEventListener("change", e => { STATE.outlier.n = +e.target.value; renderStandings(); });
+$("#o-metric").addEventListener("change", e => { STATE.outlier.metric = e.target.value; renderStandings(); });
 $$(".tab").forEach(t => t.addEventListener("click", () => switchTo(t.dataset.view)));
 $("#drawer-close").addEventListener("click", closeDrawer);
 $("#drawer-bg").addEventListener("click", closeDrawer);
