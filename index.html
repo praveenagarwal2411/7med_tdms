@@ -165,6 +165,14 @@ body{
 .kpi.bad .k-bar i{background:var(--arterial)}
 .kpi.warn .k-val{color:var(--amber)}
 .kpi.bad .k-val{color:var(--arterial)}
+.kpi.drill{cursor:pointer;transition:border-color .12s,box-shadow .12s}
+.kpi.drill:hover,.kpi.drill:focus-visible{border-color:var(--ink-2);box-shadow:0 1px 0 rgba(15,39,47,.06),0 10px 26px -18px rgba(15,39,47,.6)}
+.kpi.drill:focus-visible{outline:2px solid var(--venous);outline-offset:1px}
+.kpi .k-go{
+  position:absolute;top:12px;right:14px;font-family:var(--f-num);font-size:13px;color:var(--ink-3);
+  opacity:0;transition:opacity .12s,transform .12s;
+}
+.kpi.drill:hover .k-go,.kpi.drill:focus-visible .k-go{opacity:1;transform:translateX(2px)}
 
 /* ---------- tables ---------- */
 .tbl-scroll{overflow:auto;max-height:560px;border-top:1px solid var(--rule-2)}
@@ -206,6 +214,16 @@ td .flag{
 .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}
 .legend span{font-family:var(--f-lbl);font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);display:flex;align-items:center;gap:6px}
 .legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.legend button{
+  font-family:var(--f-lbl);font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-2);background:none;border:1px solid transparent;border-radius:2px;padding:3px 7px;
+  display:flex;align-items:center;gap:6px;cursor:pointer;
+}
+.legend button:hover{border-color:var(--rule)}
+.legend button:focus-visible{outline:2px solid var(--venous);outline-offset:1px}
+.legend button[aria-pressed="false"]{color:var(--ink-3);text-decoration:line-through;opacity:.6}
+.legend button[aria-pressed="false"] i{background:var(--rule) !important}
+.legend .hint-off{font-family:var(--f-body);font-size:10.5px;color:var(--ink-3);text-transform:none;letter-spacing:0}
 
 /* ---------- trace strip (signature) ---------- */
 .trace{padding:6px 0 0}
@@ -311,6 +329,10 @@ td .flag{
       <label>&nbsp;</label>
       <label class="toggle"><input type="checkbox" id="f-mask"> Mask names</label>
     </div>
+    <div class="fg">
+      <label>&nbsp;</label>
+      <label class="toggle"><input type="checkbox" id="f-labels" checked> Data labels</label>
+    </div>
     <div class="fg"><label>&nbsp;</label><button class="btn-ghost" id="btn-reset" type="button">Reset</button></div>
     <div class="fg"><label>&nbsp;</label><button class="btn-solid" id="btn-export" type="button">Export CSV</button></div>
   </div>
@@ -354,12 +376,9 @@ td .flag{
 
       <div class="grid g-2" style="margin-top:16px">
         <div class="panel">
-          <div class="panel-hd"><h2>Time on treatment vs Kt/V</h2><span class="hint">one dot = one session</span></div>
+          <div class="panel-hd"><h2>Time on treatment vs Kt/V</h2><span class="hint" id="hint-scatter">one dot = one session</span></div>
           <div class="panel-bd"><div id="c-scatter"></div>
-            <div class="legend">
-              <span><i style="background:var(--venous)"></i>4008</span>
-              <span><i style="background:var(--hdf)"></i>5008</span>
-            </div>
+            <div class="legend" id="scatter-legend"></div>
           </div>
         </div>
         <div class="panel">
@@ -462,7 +481,10 @@ td .flag{
 <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
   <div class="drawer-hd">
     <div><h3 id="drawer-title">—</h3><span class="eyebrow" id="drawer-sub">—</span></div>
-    <button class="x" id="drawer-close" type="button" aria-label="Close">✕</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-ghost" id="drawer-export" type="button">Export these</button>
+      <button class="x" id="drawer-close" type="button" aria-label="Close">✕</button>
+    </div>
   </div>
   <div class="drawer-stats" id="drawer-stats"></div>
   <div class="drawer-bd"><table id="t-sessions"></table></div>
@@ -918,6 +940,12 @@ function barChart(items, opts){
     const x = pl + i * bw + bw * .14, ww = bw * .72;
     s += '<rect x="' + x.toFixed(1) + '" y="' + (pt + ih - bh).toFixed(1) + '" width="' + ww.toFixed(1) + '" height="' + Math.max(0, bh).toFixed(1) +
          '" fill="' + (d.color || "var(--venous)") + '" rx="1"><title>' + esc(d.label) + ' · ' + fmt(d.n) + '</title></rect>';
+    if (opts.labels && d.n > 0){
+      const top = pt + ih - bh, inside = top < pt + 13;
+      s += '<text x="' + (x + ww/2).toFixed(1) + '" y="' + (inside ? top + 11 : top - 4).toFixed(1) +
+           '" text-anchor="middle" style="font-family:var(--f-num);font-size:' + (bw < 26 ? 8 : 9.5) + 'px;fill:' +
+           (inside ? "#fff" : "var(--ink-2)") + '">' + fmt(d.n) + '</text>';
+    }
     if (items.length <= 16 || i % Math.ceil(items.length / 12) === 0){
       s += '<text class="ax" x="' + (pl + i * bw + bw / 2).toFixed(1) + '" y="' + (pt + ih + 13) + '" text-anchor="middle">' + esc(d.short || d.label) + '</text>';
     }
@@ -938,7 +966,8 @@ function hbarChart(items, opts){
     const bw = iw * d.n / max;
     s += '<text class="ax" x="' + (pl - 9) + '" y="' + (y + rowH/2 + 3) + '" text-anchor="end" style="font-size:11px;fill:var(--ink-2)">' + esc(d.label) + '</text>';
     s += '<rect x="' + pl + '" y="' + (y + 5) + '" width="' + Math.max(1.5, bw).toFixed(1) + '" height="' + (rowH - 12) + '" rx="1" fill="' + (d.color || "var(--dialysate)") + '"><title>' + esc(d.label) + ' · ' + fmt(d.n) + '</title></rect>';
-    s += '<text class="ax" x="' + (pl + bw + 7).toFixed(1) + '" y="' + (y + rowH/2 + 3.4) + '" style="font-size:11px;fill:var(--ink)">' + fmt(d.n) + (d.suffix || "") + '</text>';
+    if (opts.labels !== false)
+      s += '<text class="ax" x="' + (pl + bw + 7).toFixed(1) + '" y="' + (y + rowH/2 + 3.4) + '" style="font-size:11px;fill:var(--ink)">' + fmt(d.n) + (d.suffix || "") + '</text>';
   });
   return svg(s, w, h);
 }
@@ -1008,7 +1037,7 @@ function scatterChart(pts, opts){
 
 // Signature element: sessions-per-day trace with a Kt/V band underneath.
 function traceStrip(series){
-  const w = 1000, h = 170;
+  const w = 1000, h = 196;
   const pl = 40, pr = 16, pt = 16;
   const traceH = 92, bandH = 16, bandGap = 12;
   const iw = w - pl - pr;
@@ -1049,10 +1078,21 @@ function traceStrip(series){
   series.forEach((d,i) => {
     s += '<rect x="' + (pl + i*step + 1).toFixed(1) + '" y="' + by + '" width="' + Math.max(1.5, step-2).toFixed(1) + '" height="' + bandH + '" rx="1" fill="' + ktvColor(d) + '"/>';
   });
-  const ly = by + bandH + 14;
+  // Axis reads as a date, not a bare number: day, weekday, and the month wherever it turns over.
+  const ly = by + bandH + 14, ly2 = ly + 11, ly3 = ly2 + 14;
+  const every = Math.max(1, Math.ceil(21 / step));
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   series.forEach((d,i) => {
-    const show = series.length <= 33 ? (d.date.getDate() % 2 === 1 || series.length <= 16) : i % Math.ceil(series.length/16) === 0;
-    if (show) s += '<text class="ax" x="' + X(i).toFixed(1) + '" y="' + ly + '" text-anchor="middle">' + d.date.getDate() + '</text>';
+    if (i % every === 0 || d.date.getDate() === 1)
+      s += '<text class="ax" x="' + X(i).toFixed(1) + '" y="' + ly + '" text-anchor="middle">' + d.date.getDate() + '</text>';
+    if (every === 1)
+      s += '<text class="ax" x="' + X(i).toFixed(1) + '" y="' + ly2 + '" text-anchor="middle" style="font-size:8px;fill:' +
+           (d.weekday === 0 ? "var(--arterial)" : "var(--ink-3)") + '">' + WEEKDAYS[d.weekday][0] + '</text>';
+    if (i === 0 || d.date.getDate() === 1){
+      const x = (pl + i * step).toFixed(1);
+      s += '<line x1="' + x + '" y1="' + (ly3 - 10) + '" x2="' + x + '" y2="' + (ly3 + 3) + '" stroke="var(--rule)" stroke-width="1"/>';
+      s += '<text class="ax-lbl" x="' + (+x + 5) + '" y="' + ly3 + '">' + MON[d.date.getMonth()] + " " + d.date.getFullYear() + '</text>';
+    }
   });
   series.forEach((d,i) => {
     s += '<rect class="hot" x="' + (pl + i*step).toFixed(1) + '" y="' + pt + '" width="' + step.toFixed(1) + '" height="' + (traceH + bandGap + bandH) +
@@ -1076,8 +1116,19 @@ const STATE = {
   sortFlags: { key:"when", dir:"desc" },
   flagFilter: "",
   bounds: { min:"", max:"" },
-  auto: true, lastRead: null
+  auto: true, lastRead: null,
+  dataLabels: true,
+  hiddenDevices: [],          // scatter-only series toggles
+  drawer: { rows:[], name:"", showPatient:false }
 };
+
+const DEVICE_COLORS = { "4008":"var(--venous)", "5008":"var(--hdf)", "Unknown":"var(--ink-3)" };
+const EXTRA_COLORS = ["var(--dialysate)","var(--amber)","var(--arterial)","#3d7ea6"];
+function deviceColor(name, all){
+  if (DEVICE_COLORS[name]) return DEVICE_COLORS[name];
+  const i = all.indexOf(name);
+  return EXTRA_COLORS[i % EXTRA_COLORS.length];
+}
 
 const REFRESH_MS = 3 * 60 * 1000;   // how often the page re-reads the sheet
 let refreshTimer = null;
@@ -1228,7 +1279,9 @@ function renderTrace(){
 }
 
 function kpiCard(o){
-  return '<div class="panel kpi ' + (o.tone || "") + '">' +
+  const drill = o.drill ? ' drill" data-drill="' + esc(o.drill) + '" role="button" tabindex="0" title="' + esc(o.drillHint || "Open the sessions behind this number") + '"' : '"';
+  return '<div class="panel kpi ' + (o.tone || "") + drill + '>' +
+    (o.drill ? '<span class="k-go" aria-hidden="true">→</span>' : "") +
     '<span class="k-lbl">' + esc(o.label) + '</span>' +
     '<div class="k-val">' + o.value + (o.unit ? '<small> ' + esc(o.unit) + '</small>' : "") + '</div>' +
     '<div class="k-sub">' + o.sub + '</div>' +
@@ -1251,22 +1304,25 @@ function renderKpis(){
     kpiCard({
       label:"Kt/V on target", value: fmt(ktvShare,1), unit:"%",
       sub: fmt(onTarget) + " of " + fmt(ktv.n) + " measured · mean " + fmt(ktv.mean,2),
-      bar: ktvShare, tone: ktvShare >= 85 ? "" : ktvShare >= 70 ? "warn" : "bad"
+      bar: ktvShare, tone: ktvShare >= 85 ? "" : ktvShare >= 70 ? "warn" : "bad",
+      drill:"ktv", drillHint:"Show the measured sessions below Kt/V " + THRESHOLDS.ktvMin
     }),
     kpiCard({
       label:"Sessions ≥ 4 hours", value: fmt(timeShare,1), unit:"%",
       sub: "median " + fmtMins(mins.median) + " · " + fmt(f.filter(r => r.flags.includes("aborted")).length) + " ended early",
-      bar: timeShare, tone: timeShare >= 85 ? "" : timeShare >= 60 ? "warn" : "bad"
+      bar: timeShare, tone: timeShare >= 85 ? "" : timeShare >= 60 ? "warn" : "bad",
+      drill:"time", drillHint:"Show the sessions under " + THRESHOLDS.timeMinTarget + " minutes"
     }),
     kpiCard({
       label:"Sessions per patient", value: fmt(pats ? f.length / pats : 0, 1),
       sub: fmt(pats) + " patients · " + fmt(f.length) + " sessions",
-      bar: null
+      bar: null, drill:"patients", drillHint:"Go to the patient table"
     }),
     kpiCard({
       label:"Mean UF rate", value: fmt(uf.mean,0), unit:"ml/h",
       sub: "blood flow " + fmt(qb.mean,0) + " ml/min · " + fmt(f.filter(r => r.flags.includes("highuf")).length) + " above " + THRESHOLDS.ufMax,
-      bar: null, tone: uf.mean > THRESHOLDS.ufMax ? "warn" : ""
+      bar: null, tone: uf.mean > THRESHOLDS.ufMax ? "warn" : "",
+      drill:"uf", drillHint:"Show the sessions above " + THRESHOLDS.ufMax + " ml/h"
     })
   ].join("");
 }
@@ -1278,7 +1334,7 @@ function renderAdequacy(){
   $("#c-ktv").innerHTML = barChart(kh.bins.map(b => ({
     label: b.lo.toFixed(1) + "–" + b.hi.toFixed(1), short: b.lo.toFixed(1),
     n: b.n, color: b.hi <= THRESHOLDS.ktvMin ? "var(--arterial)" : b.lo < 1.4 ? "#e0b970" : "var(--dialysate)"
-  })), { xlabel:"single-pool Kt/V", spX:(THRESHOLDS.ktvMin - .2)/2.4, setpoint:1, setpointLabel:"1.2 target" });
+  })), { xlabel:"single-pool Kt/V", spX:(THRESHOLDS.ktvMin - .2)/2.4, setpoint:1, setpointLabel:"1.2 target", labels:STATE.dataLabels });
   const s = stats(kv);
   $("#hint-ktv").textContent = "n=" + fmt(s.n) + " · median " + fmt(s.median,2) + " · p10 " + fmt(s.p10,2) +
     " · p90 " + fmt(s.p90,2) + clipNote(kh);
@@ -1288,30 +1344,46 @@ function renderAdequacy(){
   $("#c-time").innerHTML = barChart(th.bins.map(b => ({
     label: b.lo + "–" + b.hi + " min", short: String(b.lo),
     n: b.n, color: b.hi <= THRESHOLDS.timeAborted ? "var(--arterial)" : b.hi <= THRESHOLDS.timeMinTarget ? "#e0b970" : "var(--dialysate)"
-  })), { xlabel:"minutes on treatment", spX:THRESHOLDS.timeMinTarget/360, setpoint:1, setpointLabel:"240 min" });
+  })), { xlabel:"minutes on treatment", spX:THRESHOLDS.timeMinTarget/360, setpoint:1, setpointLabel:"240 min", labels:STATE.dataLabels });
   const ts = stats(tm);
   $("#hint-time").textContent = "median " + fmtMins(ts.median) + " · shortest " + fmtMins(ts.min) +
     " · longest " + fmtMins(ts.max) + clipNote(th);
 
-  $("#c-scatter").innerHTML = scatterChart(
-    f.filter(r => r.mins != null && r.ktv != null).map(r => ({
-      x: r.mins, y: r.ktv, color: r.device === "5008" ? "var(--hdf)" : "var(--venous)",
-      title: dispName(r.name) + " · " + fmtDT(r.when) + " · " + fmtMins(r.mins) + " · Kt/V " + fmt(r.ktv,2)
-    })),
-    { xmax:360, ymax:2.6, ydec:1, xlabel:"minutes on treatment", ylabel:"Kt/V",
-      hline:THRESHOLDS.ktvMin, hlineLabel:"Kt/V 1.2", vline:THRESHOLDS.timeMinTarget, vlineLabel:"240 min" }
-  );
+  renderScatter();
 
   const qh = histogram(f.map(r => r.qb).filter(v => v != null), 60, 480, 30);
   $("#c-qb").innerHTML = barChart(qh.bins.map(b => ({
     label: b.lo + "–" + b.hi, short: String(b.lo), n: b.n,
     color: b.hi <= THRESHOLDS.qbMin ? "var(--amber)" : "var(--venous)"
-  })), { xlabel:"effective blood flow ml/min", height:160, spX:(THRESHOLDS.qbMin - 60)/420, setpoint:1, setpointLabel:"250" });
+  })), { xlabel:"effective blood flow ml/min", height:160, spX:(THRESHOLDS.qbMin - 60)/420, setpoint:1, setpointLabel:"250", labels:STATE.dataLabels });
   const uh = histogram(f.map(r => r.uf).filter(v => v != null), 0, 1500, 125);
   $("#c-uf").innerHTML = barChart(uh.bins.map(b => ({
     label: b.lo + "–" + b.hi, short: String(b.lo), n: b.n,
     color: b.lo >= THRESHOLDS.ufMax ? "#e0b970" : "var(--venous)"
-  })), { xlabel:"mean UF rate ml/h", height:160, spX:THRESHOLDS.ufMax/1500, setpoint:1, setpointLabel:String(THRESHOLDS.ufMax) });
+  })), { xlabel:"mean UF rate ml/h", height:160, spX:THRESHOLDS.ufMax/1500, setpoint:1, setpointLabel:String(THRESHOLDS.ufMax), labels:STATE.dataLabels });
+}
+
+function renderScatter(){
+  const f = STATE.filtered;
+  const devices = [...countBy(f, r => r.device).keys()].sort();
+  const shown = f.filter(r => r.mins != null && r.ktv != null && !STATE.hiddenDevices.includes(r.device));
+  $("#c-scatter").innerHTML = scatterChart(
+    shown.map(r => ({
+      x: r.mins, y: r.ktv, color: deviceColor(r.device, devices),
+      title: dispName(r.name) + " · " + fmtDT(r.when) + " · " + r.device + " · " + fmtMins(r.mins) + " · Kt/V " + fmt(r.ktv,2)
+    })),
+    { xmax:360, ymax:2.6, ydec:1, xlabel:"minutes on treatment", ylabel:"Kt/V",
+      hline:THRESHOLDS.ktvMin, hlineLabel:"Kt/V 1.2", vline:THRESHOLDS.timeMinTarget, vlineLabel:"240 min" }
+  );
+  $("#scatter-legend").innerHTML = devices.map(d => {
+    const on = !STATE.hiddenDevices.includes(d);
+    const n = f.filter(r => r.device === d && r.mins != null && r.ktv != null).length;
+    return '<button type="button" data-device="' + esc(d) + '" aria-pressed="' + on + '">' +
+      '<i style="background:' + deviceColor(d, devices) + '"></i>' + esc(d) + ' · ' + fmt(n) + '</button>';
+  }).join("") + '<span class="hint-off">click a machine to hide it</span>';
+  const ktv = stats(shown.map(r => r.ktv)), mins = stats(shown.map(r => r.mins));
+  $("#hint-scatter").textContent = fmt(shown.length) + " sessions plotted · mean Kt/V " + fmt(ktv.mean,2) +
+    " · mean time " + fmtMins(mins.mean);
 }
 
 function clipNote(h){
@@ -1323,9 +1395,9 @@ function clipNote(h){
 
 function renderMix(){
   const f = STATE.filtered;
-  const devColors = { "4008":"var(--venous)", "5008":"var(--hdf)", "Unknown":"var(--rule)" };
+  const devAll = [...countBy(f, r => r.device).keys()].sort();
   const dev = [...countBy(f, r => r.device)].sort((a,b) => b[1]-a[1])
-    .map(([k,n]) => ({ label:k, n, color: devColors[k] || "var(--ink-3)" }));
+    .map(([k,n]) => ({ label:k, n, color: deviceColor(k, devAll) }));
   $("#c-device").innerHTML = donutChart(dev, { centerLabel:"sessions" });
   const modColors = { HD:"var(--dialysate)", HDF:"var(--hdf)", Unspecified:"var(--amber)" };
   const mod = [...countBy(f, r => r.modality)].sort((a,b) => b[1]-a[1])
@@ -1336,12 +1408,12 @@ function renderMix(){
     SHIFT_ORDER.filter(s => sh.has(s)).map(s => ({
       label: s + (s === "Morning" ? " 05–11" : s === "Afternoon" ? " 11–16" : s === "Evening" ? " 16–20" : s === "Night" ? " 20–05" : ""),
       n: sh.get(s), color:"var(--venous)"
-    })), { labelWidth:132 });
+    })), { labelWidth:132, labels:STATE.dataLabels });
   const wd = countBy(f, r => r.weekday);
   $("#c-weekday").innerHTML = barChart(
     [1,2,3,4,5,6,0].filter(d => wd.has(d)).map(d => ({ label:WEEKDAYS[d], short:WEEKDAYS[d], n:wd.get(d),
       color: d === 0 ? "var(--ink-3)" : "var(--dialysate)" })),
-    { xlabel:"", height:170 }
+    { xlabel:"", height:170, labels:STATE.dataLabels }
   );
   $("#rule-mix").textContent = mod.map(m => m.label + " " + fmt(pct(m.n, f.length),0) + "%").join(" · ");
 
@@ -1350,7 +1422,7 @@ function renderMix(){
   $("#c-bp").innerHTML = barChart(bh.bins.map(b => ({
     label: b.lo + "–" + b.hi, short: String(b.lo), n: b.n,
     color: b.hi <= THRESHOLDS.sbpLow ? "var(--arterial)" : b.lo >= THRESHOLDS.sbpHigh ? "#e0b970" : "var(--dialysate)"
-  })), { xlabel:"post-dialysis systolic mmHg", height:190 });
+  })), { xlabel:"post-dialysis systolic mmHg", height:190, labels:STATE.dataLabels });
   const s = stats(sbp);
   $("#hint-bp").textContent = s.n
     ? "recorded in " + fmt(pct(s.n, f.length),0) + "% of sessions · median " + fmt(s.median,0) +
@@ -1431,7 +1503,8 @@ function renderFlags(){
     label: c.label, value: fmt(c.n),
     sub: fmt(pct(c.n, f.length),1) + "% of " + fmt(f.length) + " sessions",
     bar: pct(c.n, f.length),
-    tone: c.tone === "f-red" ? "bad" : "warn"
+    tone: c.tone === "f-red" ? "bad" : "warn",
+    drill: "flag:" + c.id, drillHint:"Filter the table to " + c.label.toLowerCase()
   })).join("");
   $$("#f-flagtype .chip").forEach(ch => {
     ch.setAttribute("aria-pressed", String(ch.dataset.flag === STATE.flagFilter));
@@ -1471,7 +1544,7 @@ function renderQuality(){
   $("#c-fill").innerHTML = hbarChart(fills.map(x => ({
     label: x.label, n: Math.round(x.pct), suffix:"%",
     color: x.pct >= 95 ? "var(--dialysate)" : x.pct >= 60 ? "var(--amber)" : "var(--arterial)"
-  })), { labelWidth:150 });
+  })), { labelWidth:150, labels:STATE.dataLabels });
   const presc = [...countBy(f, r => r.prescRaw || "(blank)")].sort((a,b) => b[1] - a[1]);
   $("#t-presc").innerHTML = '<thead><tr><th style="cursor:default">As typed</th><th style="cursor:default">Reads as</th><th style="cursor:default">Sessions</th></tr></thead><tbody>' +
     presc.map(([raw, n]) => {
@@ -1491,41 +1564,134 @@ function renderQuality(){
     '</tbody>';
 }
 
-/* ---- patient drawer ---- */
-function openPatient(p){
-  if (!p) return;
-  $("#drawer-title").textContent = dispName(p.name);
-  $("#drawer-sub").textContent = p.sessions + " sessions · " + p.devices.join(", ") + " · " + p.modalities.join(", ") +
-    " · " + fmtDate(p.firstWhen) + " – " + fmtDate(p.lastWhen);
-  $("#drawer-stats").innerHTML = [
-    ["Mean Kt/V", p.meanKtv == null ? "—" : fmt(p.meanKtv,2)],
-    ["% ≥ 1.2", p.pctOnTarget == null ? "—" : fmt(p.pctOnTarget,0) + "%"],
-    ["Mean time", fmtMins(p.meanMins)],
-    ["Mean Qb", fmt(p.meanQb,0) + " ml/min"],
-    ["Mean UF", fmt(p.meanUf,0) + " ml/h"],
-    ["Blood vol.", fmt(p.meanBv,1) + " L"],
-    ["Flags", fmt(p.flagCount)]
-  ].map(([k,v]) => '<div><span class="eyebrow">' + esc(k) + '</span><span class="v">' + esc(v) + '</span></div>').join("");
-  const rows = [...p.rows].sort((a,b) => (b.when ? +b.when : 0) - (a.when ? +a.when : 0));
+/* ---- drawer: shows any set of sessions ---- */
+const SESSION_COLS = [
+  ["Session",      r => esc(fmtDT(r.when)),  true],
+  ["Machine",      r => esc(r.device)],
+  ["Prescription", r => '<span style="font-family:var(--f-body)">' + esc(r.prescRaw || "—") + '</span>'],
+  ["Time",         r => fmtMins(r.mins)],
+  ["Kt/V",         r => fmt(r.ktv,2)],
+  ["Kt L",         r => fmt(r.kt,1)],
+  ["Qb",           r => fmt(r.qb,0)],
+  ["UF",           r => fmt(r.uf,0)],
+  ["Blood vol.",   r => fmt(r.bv,1)],
+  ["Post BP",      r => r.sbp == null ? "—" : fmt(r.sbp,0) + "/" + fmt(r.dbp,0)],
+  ["HR",           r => fmt(r.hr,0)],
+  ["Flags",        r => r.flags.map(id => { const d = FLAG_DEFS.find(x => x.id === id); return '<span class="flag ' + d.tone + '">' + esc(d.label) + '</span>'; }).join("")]
+];
+
+function openDrawer(o){
+  const cols = o.showPatient
+    ? [["Patient", r => esc(dispName(r.name)), true], ...SESSION_COLS.map(c => [c[0], c[1]])]
+    : SESSION_COLS;
+  const rows = [...o.rows].sort(o.sort || ((a,b) => (b.when ? +b.when : 0) - (a.when ? +a.when : 0)));
+  $("#drawer-title").textContent = o.title;
+  $("#drawer-sub").textContent = o.sub;
+  $("#drawer-stats").innerHTML = o.stats.map(([k,v]) =>
+    '<div><span class="eyebrow">' + esc(k) + '</span><span class="v">' + esc(v) + '</span></div>').join("");
   $("#t-sessions").innerHTML =
-    '<thead><tr>' + ["Session","Machine","Prescription","Time","Kt/V","Kt L","Qb","UF","Blood vol.","Post BP","HR","Flags"]
-      .map(h => '<th style="cursor:default">' + h + '</th>').join("") + '</tr></thead><tbody>' +
-    rows.map(r => '<tr>' + [
-      esc(fmtDT(r.when)), esc(r.device), '<span style="font-family:var(--f-body)">' + esc(r.prescRaw || "—") + '</span>',
-      fmtMins(r.mins), fmt(r.ktv,2), fmt(r.kt,1), fmt(r.qb,0), fmt(r.uf,0), fmt(r.bv,1),
-      r.sbp == null ? "—" : fmt(r.sbp,0) + "/" + fmt(r.dbp,0), fmt(r.hr,0),
-      r.flags.map(id => { const d = FLAG_DEFS.find(x => x.id === id); return '<span class="flag ' + d.tone + '">' + esc(d.label) + '</span>'; }).join("")
-    ].map((c,i) => '<td class="' + (i === 0 ? "name" : "") + '">' + c + '</td>').join("") + '</tr>').join("") +
+    '<thead><tr>' + cols.map(c => '<th style="cursor:default">' + esc(c[0]) + '</th>').join("") + '</tr></thead><tbody>' +
+    (rows.length
+      ? rows.map(r => '<tr>' + cols.map((c,ci) => '<td class="' + (ci === 0 || c[2] ? "name" : "") + '">' + c[1](r) + '</td>').join("") + '</tr>').join("")
+      : '<tr><td colspan="' + cols.length + '" style="text-align:left;color:var(--ink-2);padding:20px">Nothing matches this in the current selection.</td></tr>') +
     '</tbody>';
+  STATE.drawer = { rows, name: o.exportName || "tdms-selection" };
   $("#drawer").classList.add("open"); $("#drawer-bg").classList.add("open");
   $("#drawer").focus();
 }
+
+function sessionSetStats(rows){
+  const ktvs = rows.map(r => r.ktv).filter(v => v != null);
+  const onT = ktvs.filter(v => v >= THRESHOLDS.ktvMin).length;
+  return [
+    ["Sessions", fmt(rows.length)],
+    ["Patients", fmt(new Set(rows.map(r => r.name)).size)],
+    ["Mean Kt/V", ktvs.length ? fmt(ktvs.reduce((a,b)=>a+b,0)/ktvs.length, 2) : "—"],
+    ["% ≥ " + THRESHOLDS.ktvMin, ktvs.length ? fmt(pct(onT, ktvs.length),0) + "%" : "—"],
+    ["Mean time", fmtMins(stats(rows.map(r => r.mins)).mean)],
+    ["Mean Qb", fmt(stats(rows.map(r => r.qb)).mean,0) + " ml/min"],
+    ["Mean UF", fmt(stats(rows.map(r => r.uf)).mean,0) + " ml/h"]
+  ];
+}
+
+function openSessions(title, sub, rows, exportName, sort){
+  openDrawer({ title, sub, rows, showPatient:true, exportName, sort, stats: sessionSetStats(rows) });
+}
+
+function openPatient(p){
+  if (!p) return;
+  openDrawer({
+    title: dispName(p.name),
+    sub: p.sessions + " sessions · " + p.devices.join(", ") + " · " + p.modalities.join(", ") +
+         " · " + fmtDate(p.firstWhen) + " – " + fmtDate(p.lastWhen),
+    rows: p.rows,
+    exportName: "tdms-patient",
+    stats: [
+      ["Mean Kt/V", p.meanKtv == null ? "—" : fmt(p.meanKtv,2)],
+      ["% ≥ " + THRESHOLDS.ktvMin, p.pctOnTarget == null ? "—" : fmt(p.pctOnTarget,0) + "%"],
+      ["Mean time", fmtMins(p.meanMins)],
+      ["Mean Qb", fmt(p.meanQb,0) + " ml/min"],
+      ["Mean UF", fmt(p.meanUf,0) + " ml/h"],
+      ["Blood vol.", fmt(p.meanBv,1) + " L"],
+      ["Flags", fmt(p.flagCount)]
+    ]
+  });
+}
+
+/* ---- what each card opens ---- */
+function switchTo(view){
+  STATE.view = view;
+  $$(".tab").forEach(x => x.setAttribute("aria-selected", String(x.dataset.view === view)));
+  $$("section[data-view]").forEach(sec => { sec.hidden = sec.dataset.view !== view; });
+  window.scrollTo({ top:0, behavior:"smooth" });
+}
+
+function runDrill(key){
+  const f = STATE.filtered, period = fmtDate(new Date((STATE.filters.from || STATE.bounds.min) + "T00:00:00")) +
+    " – " + fmtDate(new Date((STATE.filters.to || STATE.bounds.max) + "T00:00:00"));
+  if (key === "ktv"){
+    const rows = f.filter(r => r.ktv != null && r.ktv < THRESHOLDS.ktvMin);
+    return openSessions("Kt/V below " + THRESHOLDS.ktvMin,
+      fmt(rows.length) + " of " + fmt(f.filter(r => r.ktv != null).length) + " measured sessions · " + period,
+      rows, "tdms-ktv-below-target");
+  }
+  if (key === "time"){
+    const rows = f.filter(r => r.mins != null && r.mins < THRESHOLDS.timeMinTarget);
+    return openSessions("Under " + THRESHOLDS.timeMinTarget + " minutes on treatment",
+      fmt(rows.length) + " sessions, shortest first · " + period, rows, "tdms-short-sessions",
+      (a,b) => (a.mins || 0) - (b.mins || 0));
+  }
+  if (key === "uf"){
+    const rows = f.filter(r => r.uf != null && r.uf > THRESHOLDS.ufMax);
+    return openSessions("UF rate above " + THRESHOLDS.ufMax + " ml/h",
+      fmt(rows.length) + " sessions, highest first · " + period, rows, "tdms-high-uf",
+      (a,b) => (b.uf || 0) - (a.uf || 0));
+  }
+  if (key === "patients") return switchTo("patients");
+  if (key.startsWith("flag:")){
+    STATE.flagFilter = key.slice(5);
+    renderFlags();
+    const t = $("#f-flagtype"); if (t) t.scrollIntoView({ behavior:"smooth", block:"center" });
+    return;
+  }
+}
+
+document.addEventListener("click", ev => {
+  const card = ev.target.closest(".kpi[data-drill]");
+  if (card) runDrill(card.dataset.drill);
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  const card = ev.target.closest && ev.target.closest(".kpi[data-drill]");
+  if (card){ ev.preventDefault(); runDrill(card.dataset.drill); }
+});
+
 function closeDrawer(){ $("#drawer").classList.remove("open"); $("#drawer-bg").classList.remove("open"); }
 
 /* ---- export ---- */
 function exportCSV(){
   const isPatients = STATE.view === "patients";
-  let head, lines, fname;
+  let head, lines, fname;   // eslint-disable-line
   if (isPatients){
     head = ["Patient","Sessions","Modalities","Machines","Mean Kt/V","% >=1.2","Mean minutes","Mean Qb","Mean UF","Mean blood volume L","First session","Last session","Flags"];
     lines = STATE.patients.map(p => [dispName(p.name), p.sessions, p.modalities.join("/"), p.devices.join("/"),
@@ -1536,13 +1702,23 @@ function exportCSV(){
     fname = "tdms-patient-summary";
   } else {
     const src = STATE.view === "flags" ? flaggedSessions() : STATE.filtered;
-    head = ["Patient","Session","Machine","Prescription","Modality","Shift","Minutes","Kt/V","Kt L","Qb","UF","Blood volume L","Conductivity","Dialysate flow","TMP","Post SBP","Post DBP","Post HR","Post weight","Flags"];
-    lines = src.map(r => [dispName(r.name), r.when ? r.when.toISOString() : "", r.device, r.prescRaw, r.modality, r.shift,
-      r.mins ?? "", r.ktv ?? "", r.kt ?? "", r.qb ?? "", r.uf ?? "", r.bv ?? "", r.cond ?? "", r.dflow ?? "",
-      r.tmp ?? "", r.sbp ?? "", r.dbp ?? "", r.hr ?? "", r.weight ?? "",
-      r.flags.map(id => FLAG_DEFS.find(x => x.id === id).label).join("; ")]);
+    [head, lines] = sessionRows(src);
     fname = STATE.view === "flags" ? "tdms-review-queue" : "tdms-sessions";
   }
+  downloadCSV(fname, head, lines);
+}
+
+const SESSION_CSV_HEAD = ["Patient","Session","Machine","Prescription","Modality","Shift","Minutes","Kt/V","Kt L","Qb",
+  "UF","Blood volume L","Conductivity","Dialysate flow","TMP","Post SBP","Post DBP","Post HR","Post weight","Flags"];
+
+function sessionRows(src){
+  return [SESSION_CSV_HEAD, src.map(r => [dispName(r.name), r.when ? r.when.toISOString() : "", r.device, r.prescRaw,
+    r.modality, r.shift, r.mins ?? "", r.ktv ?? "", r.kt ?? "", r.qb ?? "", r.uf ?? "", r.bv ?? "", r.cond ?? "",
+    r.dflow ?? "", r.tmp ?? "", r.sbp ?? "", r.dbp ?? "", r.hr ?? "", r.weight ?? "",
+    r.flags.map(id => FLAG_DEFS.find(x => x.id === id).label).join("; ")])];
+}
+
+function downloadCSV(fname, head, lines){
   const q = v => { const s = String(v == null ? "" : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
   const csv = [head, ...lines].map(r => r.map(q).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type:"text/csv;charset=utf-8" }));
@@ -1578,6 +1754,18 @@ $("#f-to").addEventListener("change", e => { STATE.filters.to = e.target.value; 
 $("#f-device").addEventListener("change", e => { STATE.filters.device = e.target.value; render(); });
 $("#f-modality").addEventListener("change", e => { STATE.filters.modality = e.target.value; render(); });
 $("#f-mask").addEventListener("change", e => { STATE.mask = e.target.checked; render(); });
+$("#f-labels").addEventListener("change", e => { STATE.dataLabels = e.target.checked; render(); });
+$("#scatter-legend").addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-device]"); if (!b) return;
+  const d = b.dataset.device;
+  STATE.hiddenDevices = STATE.hiddenDevices.includes(d)
+    ? STATE.hiddenDevices.filter(x => x !== d) : [...STATE.hiddenDevices, d];
+  renderScatter();
+});
+$("#drawer-export").addEventListener("click", () => {
+  const [head, lines] = sessionRows(STATE.drawer.rows);
+  downloadCSV(STATE.drawer.name, head, lines);
+});
 let searchT;
 $("#f-search").addEventListener("input", e => {
   clearTimeout(searchT);
@@ -1603,11 +1791,7 @@ $("#btn-reset").addEventListener("click", () => {
   render();
 });
 $("#btn-export").addEventListener("click", exportCSV);
-$$(".tab").forEach(t => t.addEventListener("click", () => {
-  STATE.view = t.dataset.view;
-  $$(".tab").forEach(x => x.setAttribute("aria-selected", String(x === t)));
-  $$("section[data-view]").forEach(s => { s.hidden = s.dataset.view !== STATE.view; });
-}));
+$$(".tab").forEach(t => t.addEventListener("click", () => switchTo(t.dataset.view)));
 $("#drawer-close").addEventListener("click", closeDrawer);
 $("#drawer-bg").addEventListener("click", closeDrawer);
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
